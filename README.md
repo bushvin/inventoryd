@@ -11,6 +11,7 @@ inventoryd is currently in development, and any feature may break at any given t
 + Automatic data sync scheduling
 + Automatic cache housekeeping
 + Various backends to store the inventory cache (currently only supports sqlite3)
+
 ## to do
 + REST management interface (over both http and https)
 + Various backends to store the inventory cache (postgresql, mariadb)
@@ -20,6 +21,7 @@ inventoryd is currently in development, and any feature may break at any given t
 + Create a systemd unit file
 + Create a System V init script
 + Provide a cli to the REST API
+
 ## howto
 ### installation
 1. Create the sqlite3 db for inventoryd: *~]$ sqlite3 test.db < sql/sqlite3.sql*
@@ -28,8 +30,10 @@ inventoryd is currently in development, and any feature may break at any given t
 4. Create a config file based on the example
 5. Execute the script *~]$ ./inventoryd.py --config=/path/to/config/file*
 6. Browse to *http(s)://localhost:8080/inventory/list*
+
 ### connectors
 Familiarize yourself with the database first
+
 #### connector properties
 - **enabled** 0|1 *is the connector enabled?*
 - **name** string *a human name for the connector*
@@ -40,6 +44,7 @@ Familiarize yourself with the database first
 
 #### connector list
 - **uri** fetches a file from a local/remote location and interprets it. The parameters required are format and uri
+
 #### parameter list
 The following parameter is mandatory for each conenctor:
 - **schema** A list of dictionaries defining the data source: datatype(string|integer|boolean|float), index (the index of the field) and name (the name it will be known as)
@@ -47,6 +52,7 @@ The following parameter is mandatory for each conenctor:
 URI connector parameters:
 - **format** json|csv *the expected format of the data source* 
 - **uri** string *a correctly constructed uri to a local or remote resource. eg file:///tmp/data.json*
+
 #### A schema example:
 **JSON:**
 
