@@ -1,0 +1,34 @@
+{
+    "_meta": {
+        "hostvars": {
+            "localhost": {
+                "ansible_connection": "local"
+            },
+            "srv00001": {
+                "hostname": "srv00001",
+                "net_name": 400,
+                "test": true
+            },
+            "srv00002": {
+                "hostname": "srv00002",
+                "net_name": 50,
+                "test": false
+            }
+        }
+    },
+    "all": [
+        "srv00001",
+        "srv00002"
+    ],
+    "jojo": {
+        "children": [
+            "test-group1"
+        ]
+    },
+    "test-group1": {
+        "hosts": [
+            "srv00001",
+            "srv00002"
+        ]
+    }
+}

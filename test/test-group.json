@@ -1,0 +1,3 @@
+[
+{ "groupname":"test-group1", "hostname":"srv00001", "parent":"jojo" },
+{ "groupname":"test-group1", "hostname":"srv00002" } ]

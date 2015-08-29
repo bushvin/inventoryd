@@ -1,0 +1,4 @@
+*.pyc
+server.crt
+server.key
+inventoryd.db
