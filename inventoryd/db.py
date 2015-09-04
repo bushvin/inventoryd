@@ -84,7 +84,7 @@ class db():
         return self._dbo.getUserACL(username)
 
     def createConnector(self, name, connector, connector_type, parameters, priority):
-        return self._dbo.createConnector(self, name, connector, connector_type, parameters, priority)
+        return self._dbo.createConnector(name, connector, connector_type, parameters, priority)
 
     def enableConnector(self, connector_id):
         return self._dbo.enableConnector(connector_id)

@@ -2,6 +2,7 @@ import inventoryd
 from urlparse import urlparse
 import pycurl
 import os
+from StringIO import StringIO as BytesIO
 
 class connector_uri(inventoryd.connector):
     
@@ -77,15 +78,16 @@ class connector_uri(inventoryd.connector):
 
     def getHTTPfileContents(self, url):
         buffer = BytesIO()
+        url = url.encode("utf8")
         con = pycurl.Curl()
-        con.setopt(con.URL, url)
-        con.setopt(con.WRITEFUNCTION, buffer.write)
+        con.setopt(pycurl.URL, url)
+        con.setopt(pycurl.WRITEFUNCTION, buffer.write)
         if self.getParameter("insecure") is True:
-            con.setopt(con.SSL_VERIFYPEER, 0)
-            con.setopt(con.SSL_VERIFYHOST, 0)
+            con.setopt(pycurl.SSL_VERIFYPEER, 0)
+            con.setopt(pycurl.SSL_VERIFYHOST, 0)
         else:
-            con.setopt(con.SSL_VERIFYPEER, 1)
-            con.setopt(con.SSL_VERIFYHOST, 2)
+            con.setopt(pycurl.SSL_VERIFYPEER, 1)
+            con.setopt(pycurl.SSL_VERIFYHOST, 2)
             
         con.perform()
         rc = con.getinfo(con.RESPONSE_CODE)
@@ -93,7 +95,7 @@ class connector_uri(inventoryd.connector):
         if rc == 200:
             data = buffer.getvalue()
         else:
-            message="%s connector error: There was an error retrieving data from %s. RC: %s" % (self._connector_name, url, rc)
+            message="%s connector error: There was an error retrieving data from %s. RC: %s" % (self.connector_name, url, rc)
             self.message = message
             self.rc = 1
             inventoryd.logmessage(severity="err", message=message)
@@ -108,4 +110,6 @@ class connector_uri(inventoryd.connector):
             url = url + res.netloc
         if res.path != "":
             url = url + res.path
+        if res.query != "":
+            url = url + "?" + res.query
         return url

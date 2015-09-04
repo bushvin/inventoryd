@@ -20,7 +20,11 @@ CREATE TABLE acl(
     ace_modify        INTEGER DEFAULT 0,
     ace_delete        INTEGER DEFAULT 0);
 
-INSERT INTO acl (`role_name`, `object`, `ace_list`, `ace_read`, `ace_create`, `ace_modify`, `ace_delete`) VALUES('root','group',1,1,1,1,1), ('root','host',1,1,1,1,1), ('root','connector',1,1,1,1,1), ('root','user',1,1,1,1,1), ('root','role',1,1,1,1,1);
+INSERT INTO acl (`role_name`, `object`, `ace_list`, `ace_read`, `ace_create`, `ace_modify`, `ace_delete`) VALUES('root','group',1,1,1,1,1);
+INSERT INTO acl (`role_name`, `object`, `ace_list`, `ace_read`, `ace_create`, `ace_modify`, `ace_delete`) VALUES('root','host',1,1,1,1,1);
+INSERT INTO acl (`role_name`, `object`, `ace_list`, `ace_read`, `ace_create`, `ace_modify`, `ace_delete`) VALUES('root','connector',1,1,1,1,1);
+INSERT INTO acl (`role_name`, `object`, `ace_list`, `ace_read`, `ace_create`, `ace_modify`, `ace_delete`) VALUES('root','user',1,1,1,1,1);
+INSERT INTO acl (`role_name`, `object`, `ace_list`, `ace_read`, `ace_create`, `ace_modify`, `ace_delete`) VALUES('root','role',1,1,1,1,1);
 
 CREATE TABLE auth_token(
     token         CHAR(64) NOT NULL,
@@ -46,8 +50,8 @@ CREATE TABLE sync_history(
 CREATE TABLE sync_connector(
     id             INTEGER PRIMARY KEY AUTOINCREMENT,
     enabled        INT DEFAULT 1,
-    name           CHAR(64) NOT NULL,
-    connector      CHAR(64) NOT NULL,
+    name           CHAR(64) DEFAULT "",
+    connector      CHAR(64) DEFAULT "none",
     type           CHAR(64) DEFAULT 'hosts',
     parameters     TEXT,
     priority       INT DEFAULT 1000);

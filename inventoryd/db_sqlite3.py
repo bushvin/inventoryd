@@ -4,6 +4,7 @@ import json
 import datetime
 import inventoryd
 
+### FIXME: older sqlite3 versions don't support multi-insters. Back to the stoneage!
 class db_sqlite3():
     db_location = None
     
@@ -353,7 +354,7 @@ class db_sqlite3():
     def createConnector(self, name, connector, connector_type, parameters, priority):
         query = "SELECT MAX(`id`) `connector_id` FROM `sync_connector`;"
         res = self.query(query)
-        if len(res) == 1:
+        if res is not None and len(res) == 1 and res[0]["connector_id"] is not None:
             connector_id = int(res[0]["connector_id"])
         else:
             connector_id = 1

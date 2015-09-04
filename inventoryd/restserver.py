@@ -123,15 +123,15 @@ def createConnector(user = None, payload = None, handler = None):
         connector = RESTconnectorHandler(payload)
         res = connector.create()
         if res is True:
-            self.send_response(201)
-            self.send_header('Content-Type', 'application/json')
-            self.end_headers()
-            self.wfile.write(json.dumps({'rc':201,'message':'Connection created'}, sort_keys=True, indent=4, separators=(',',': ')))
+            handler.send_response(201)
+            handler.send_header('Content-Type', 'application/json')
+            handler.end_headers()
+            handler.wfile.write(json.dumps({'rc':201,'message':'Connection created'}, sort_keys=True, indent=4, separators=(',',': ')))
         else:
-            self.send_response(400)
-            self.send_header('Content-Type', 'application/json')
-            self.end_headers()
-            self.wfile.write(json.dumps({'rc':400,'message':connector.err}, sort_keys=True, indent=4, separators=(',',': ')))
+            handler.send_response(400)
+            handler.send_header('Content-Type', 'application/json')
+            handler.end_headers()
+            handler.wfile.write(json.dumps({'rc':400,'message':connector.err}, sort_keys=True, indent=4, separators=(',',': ')))
         return True
     else:
         self.send_response(401)
@@ -490,7 +490,7 @@ class RESTconnectorHandler():
         if self._parameters is None:
             self._err.append('You need to specify the connector priority')
         
-        if len(err) > 0:
+        if len(self._err) > 0:
             return False
         
         db = inventoryd.db(inventoryd.localData.cfg["db"])
