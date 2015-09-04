@@ -35,7 +35,7 @@ class logmessage():
         exec "facility = syslog.LOG_%s" % self._facility.upper()
         exec "severity = syslog.LOG_%s" % self._severity.upper()
 
-        syslog.openlog(logoption=syslog.LOG_PID, facility=facility)
+        syslog.openlog('syslog',syslog.LOG_PID,facility)
         syslog.syslog(severity, "%s" % self._message)
         syslog.closelog()
         return True
