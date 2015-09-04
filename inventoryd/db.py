@@ -76,3 +76,37 @@ class db():
     
     def getGroupCache(self):
         return self._dbo.getGroupCache()
+
+    def getUserPassword(self, username):
+        return self._dbo.getUserPassword(username)
+
+    def getUserACL(self, username):
+        return self._dbo.getUserACL(username)
+
+    def createConnector(self, name, connector, connector_type, parameters, priority):
+        return self._dbo.createConnector(self, name, connector, connector_type, parameters, priority)
+
+    def enableConnector(self, connector_id):
+        return self._dbo.enableConnector(connector_id)
+
+    def disableConnector(self, connector_id):
+        return self._dbo.disableConnector(connector_id)
+    
+    def readConnector(self, connector_id):
+        return self._dbo.readConnector(connector_id)
+
+    def getHosts(self):
+        return self._dbo.getHosts()
+
+    def readHost(self, host_id = None):
+        return self._dbo.readHost(host_id)
+    
+    def createStaticHostvar(self, hostname = None, fact = None, value = None, priority = 0):
+        return self._dbo.createStaticHostvar(hostname, fact, value, priority)
+
+    def modifyStaticHostvar(self, hostname = None, fact = None, value = None, priority = -1):
+        return self._dbo.modifyStaticHostvar(hostname, fact, value, priority)
+
+    def deleteStaticHostvar(self, hostname = None, fact = None):
+        return self._dbo.deleteStaticHostvar(hostname, fact)
+        

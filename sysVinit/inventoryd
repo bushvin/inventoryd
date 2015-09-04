@@ -1,0 +1,68 @@
+#!/bin/bash
+#
+# inventoryd      This shell script takes care of starting and stopping
+#                 the inventory daemon
+#
+# chkconfig - 58 74
+# description: Ansible inventory daemon
+
+### BEGIN INIT INFO
+# Provides: inventoryd
+# Required-start: $network $local_fs $remote_fs
+# Required-stop: $network $local_fs $remote_fs
+# Should-start: $syslog
+# Should-stop: $syslog
+# Short-Description: start and stop inventoryd
+# Description: Ansible inventory daemon
+### END INIT INFO
+
+# Source function library
+. /etc/init.d/functions
+
+# Source network configuration
+. /etc/sysconfig/network
+
+prog=inventoryd
+lockfile=/var/lock/subsys/$prog
+
+start() {
+    [ "$NETWORKING" = "no" ] && exit 1
+    [ -x /usr/bin/inventoryd ] || exit 5
+    [ -f /etc/sysconfig/inventoryd ] || exit 6
+    . /etc/sysconfig/inventoryd
+    
+    # Start daemon
+    echo -n $"Starting $prog: "
+    daemon $prog $OPTIONS
+    RETVAL=$?
+    echo
+    [ $RETVAL -eq 0 ] && touch $lockfile
+    return $RETVAL
+}
+
+stop() {
+    echo -n $"Shutting down $prog: "
+    killproc $prog
+    RETVAL=$?
+    echo
+    [ $RETVAL -eq 0 ] && rm -f $lockfile
+    return $RETVAL
+}
+
+case "$1" in
+    start)
+        start
+        ;;
+    stop)
+        stop
+        ;;
+    restart)
+        stop
+        sleep 1
+        start
+        ;;
+    *)
+        echo $"Usage: $0 {start|stop|restart}"
+        exit 2
+esac
+

@@ -20,7 +20,6 @@ class connector(object):
     
     def __init__(self, parameters=dict(), args=list()):
         self._setParameters(parameters)
-        #self._parameters = parameters
         self._args = self._args + args
 
     def _setParameters(self, parameters = dict()):
@@ -74,15 +73,6 @@ class connector(object):
                 value = bool(value)
             
         return value
-    """
-    conn = { 'uri': 'file:///home/wle/Scripts/inventoryd/test-group.json', 
-             'format':'json',
-             'schema': [ { 'name': 'hostname', 'index':'hostname', 'datatype':'string' }, 
-                         { 'name':'groupname', 'index':'groupname', 'datatype': 'string' }, 
-                         { 'name':'parent', 'index':'parent', 'datatype':'string' }
-             ] }
-
-    """
     
     def getSchemaFactName(self, fact_index):
         for el in self._schema:
