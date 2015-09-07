@@ -142,6 +142,7 @@ class daemon:
                 if c["type"] == "hosts":
                     facts = cc.getHosts()
                     if cc.rc == 0:
+                        inventoryd.logmessage(severity="info", message="%s - synchronizing %d hostvar facts" % (c["name"], len(facts)))
                         db.commitHostsCache(hid,facts)
                         inventoryd.logmessage(severity="info", message="%s - %d hostvar facts synchronized" % (c["name"], len(facts)))
                     else:
@@ -150,6 +151,9 @@ class daemon:
                 else:
                     facts, hosts, children = cc.getGroups()
                     if cc.rc == 0:
+                        inventoryd.logmessage(severity="info", message="%s - synchronizing %d groupvar facts" % (c["name"], len(facts)))
+                        inventoryd.logmessage(severity="info", message="%s - synchronizing %d group host memberships" % (c["name"], len(hosts)))
+                        inventoryd.logmessage(severity="info", message="%s - synchronizing %d group group memberships" % (c["name"], len(children)))
                         db.commitGroupsCache(hid,facts, hosts, children)
                         inventoryd.logmessage(severity="info", message="%s - %d groupvar facts synchronized" % (c["name"], len(facts)))
                         inventoryd.logmessage(severity="info", message="%s - %d group host memberships synchronized" % (c["name"], len(hosts)))
