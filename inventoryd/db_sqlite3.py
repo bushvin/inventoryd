@@ -130,26 +130,82 @@ class db_sqlite3():
         query = "UPDATE `sync_history` SET `datetime_end`='%s', `active`=%d, `resultcode`=%d, `message`='%s' WHERE `id`='%d';" % (timestamp, active, rc, msg,history_id)
         self.commit(query)
         return True
-        
+        """
+        INSERT INTO 'tablename' ('column1', 'column2') VALUES
+  ('data1', 'data2'),
+  ('data3', 'data4'),
+  ('data5', 'data6'),
+  ('data7', 'data8');
+        """
+        """
+        INSERT INTO 'tablename'
+      SELECT 'data1' AS 'column1', 'data2' AS 'column2'
+UNION SELECT 'data3', 'data4'
+UNION SELECT 'data5', 'data6'
+UNION SELECT 'data7', 'data8'
+        """
     def commitHostsCache(self, history_id, facts):
+        #for el in facts:
+        #    query = "INSERT INTO `cache_vars` (`history_id`,`name`,`type`,`fact`,`value`) VALUES ('%d','%s','hostvar','%s','%s');" % (history_id, el["hostname"], el["fact"], json.dumps(el["value"]))
+        #    self.commit(query)
+        query = "INSERT INTO `cache_vars` "
+        count = 0
         for el in facts:
-            query = "INSERT INTO `cache_vars` (`history_id`,`name`,`type`,`fact`,`value`) VALUES ('%d','%s','hostvar','%s','%s');" % (history_id, el["hostname"], el["fact"], json.dumps(el["value"]))
+            if count == 0:
+                query = "%s SELECT '%d' AS `history_id`, '%s' AS `name`, 'hostvar' AS `type`, '%s' AS `fact`, '%s' AS `value`" % (query, history_id, el["hostname"], el["fact"], json.dumps(el["value"]))
+            else:
+                query = "%s UNION SELECT '%d', '%s','hostvar','%s','%s'" %(query, history_id, el["hostname"], el["fact"], json.dumps(el["value"]))
+            count = count + 1
+        
+        if count > 0:
             self.commit(query)
-            
         return True
     
     def commitGroupsCache(self, history_id, facts, hosts, children):
+        #for el in facts:
+        #    query = "INSERT INTO `cache_vars` (`history_id`,`name`,`type`,`fact`,`value`) VALUES ('%d','%s','groupvar','%s','%s');" % (history_id, el["groupname"], el["fact"], json.dumps(el["value"]))
+        #    self.commit(query)
+        query = "INSERT INTO `cache_vars` "
+        count = 0
         for el in facts:
-            query = "INSERT INTO `cache_vars` (`history_id`,`name`,`type`,`fact`,`value`) VALUES ('%d','%s','groupvar','%s','%s');" % (history_id, el["groupname"], el["fact"], json.dumps(el["value"]))
+            if count == 0:
+                query = "%s SELECT '%d' AS `history_id`, '%s' AS `name`, 'groupvar' AS `type`, '%s' AS `fact`, '%s' AS `value`" % (query, history_id, el["groupname"], el["fact"], json.dumps(el["value"]))
+            else:
+                query = "%s UNION SELECT '%d', '%s','groupvar','%s','%s'" %(query, history_id, el["groupname"], el["fact"], json.dumps(el["value"]))
+            count = count + 1
+        
+        if count > 0:
             self.commit(query)
 
-        for el in hosts:
-            query = "INSERT INTO `cache_groupmembership` (`history_id`,`name`,`childname`,`childtype`) VALUES ('%d','%s','%s','host');" % (history_id,el["groupname"],el["host"])
+        #for el in hosts:
+        #    query = "INSERT INTO `cache_groupmembership` (`history_id`,`name`,`childname`,`childtype`) VALUES ('%d','%s','%s','host');" % (history_id,el["groupname"],el["host"])
+        #    self.commit(query)
+        query = "INSERT INTO `cache_groupmembership` "
+        count = 0
+        for el in facts:
+            if count == 0:
+                query = "%s SELECT '%d' AS `history_id`, '%s' AS `name`, '%s' AS `childname`, 'host' AS `childtype`" % (query, history_id,el["groupname"],el["host"])
+            else:
+                query = "%s UNION SELECT '%d', '%s','%s','host'" %(query, history_id,el["groupname"],el["host"])
+            count = count + 1
+        
+        if count > 0:
             self.commit(query)
 
 
-        for el in children:
-            query = "INSERT INTO `cache_groupmembership` (`history_id`,`name`,`childname`,`childtype`) VALUES ('%d','%s','%s','group');" % (history_id,el["groupname"],el["child"])
+        #for el in children:
+        #    query = "INSERT INTO `cache_groupmembership` (`history_id`,`name`,`childname`,`childtype`) VALUES ('%d','%s','%s','group');" % (history_id,el["groupname"],el["child"])
+        #    self.commit(query)
+        query = "INSERT INTO `cache_groupmembership` "
+        count = 0
+        for el in facts:
+            if count == 0:
+                query = "%s SELECT '%d' AS `history_id`, '%s' AS `name`, '%s' AS `childname`, 'group' AS `childtype`" % (query, history_id,el["groupname"],el["child"])
+            else:
+                query = "%s UNION SELECT '%d', '%s','%s','group'" %(query, history_id,el["groupname"],el["child"])
+            count = count + 1
+        
+        if count > 0:
             self.commit(query)
 
         return True
