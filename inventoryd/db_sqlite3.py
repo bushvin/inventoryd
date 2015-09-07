@@ -133,35 +133,35 @@ class db_sqlite3():
         return True
         
     def commitHostsCache(self, history_id, facts):
-        facts_query = list()
+        query = list()
         for el in facts:
-            facts_query.append("('%d','%s','hostvar','%s','%s')" % (history_id, el["hostname"], el["fact"], json.dumps(el["value"])))
-        if len(facts_query) > 0:
-            query = "INSERT INTO `cache_vars` (`history_id`,`name`,`type`,`fact`,`value`) VALUES %s;" % ",".join(facts_query)
-            self.commit(query)
+            query.append("INSERT INTO `cache_vars` (`history_id`,`name`,`type`,`fact`,`value`) VALUES ('%d','%s','hostvar','%s','%s');" % (history_id, el["hostname"], el["fact"], json.dumps(el["value"])))
+            
+        if len(query) > 0:
+            self.commit(" ".join(query))
         return True
     
     def commitGroupsCache(self, history_id, facts, hosts, children):
-        facts_query = list()
+        query = list()
         for el in facts:
-            facts_query.append("('%d','%s','groupvar','%s','%s')" % (history_id, el["groupname"], el["fact"], json.dumps(el["value"])))
-        if len(facts_query) > 0:
-            query = "INSERT INTO `cache_vars` (`history_id`,`name`,`type`,`fact`,`value`) VALUES %s;" % ",".join(facts_query)
-            self.commit(query)
+            query.append("INSERT INTO `cache_vars` (`history_id`,`name`,`type`,`fact`,`value`) VALUES ('%d','%s','groupvar','%s','%s');" % (history_id, el["groupname"], el["fact"], json.dumps(el["value"])))
+
+        if len(query) > 0:
+            self.commit(" ".join(query))
         
-        hosts_query = list()
+        query = list()
         for el in hosts:
-            hosts_query.append("('%d','%s','%s','host')" % (history_id,el["groupname"],el["host"]))
-        if len(hosts_query) > 0:
-            query = "INSERT INTO `cache_groupmembership` (`history_id`,`name`,`childname`,`childtype`) VALUES %s;" % ",".join(hosts_query)
-            self.commit(query)
+            query.append("INSERT INTO `cache_groupmembership` (`history_id`,`name`,`childname`,`childtype`) VALUES ('%d','%s','%s','host');" % (history_id,el["groupname"],el["host"])))
+
+        if len(query) > 0:
+            self.commit(" ".join(query))
         
-        groups_query = list()
+        query = list()
         for el in children:
-            groups_query.append("('%d','%s','%s','group')" % (history_id,el["groupname"],el["child"]))
-        if len(groups_query) > 0:
-            query = "INSERT INTO `cache_groupmembership` (`history_id`,`name`,`childname`,`childtype`) VALUES %s;" % ",".join(groups_query)
-            self.commit(query)
+            query.append("INSERT INTO `cache_groupmembership` (`history_id`,`name`,`childname`,`childtype`) VALUES ('%d','%s','%s','group');" % (history_id,el["groupname"],el["child"]))
+
+        if len(query) > 0:
+            self.commit(" ".join(query))
                 
         return True
 
@@ -361,7 +361,6 @@ class db_sqlite3():
         query = "INSERT INTO `sync_connector` (`id`) VALUES('%d');" % int(connector_id)
         self.commit(query)
         
-        #query = "INSERT INTO `sync_connector` (`name`,`connector`,`type`,`parameters`,`priority`) VALUES('%s','%s','%s','%s','%d');" % (name, connector, connector_type, json.dumps(parameters), int(priority) )
         return True
         
     def modifyConnector(self, connector_id, name = None, connector = None, connector_type = None, parameters = None, priority = None):
