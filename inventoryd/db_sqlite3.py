@@ -4,7 +4,6 @@ import json
 import datetime
 import inventoryd
 
-### FIXME: older sqlite3 versions don't support multi-insters. Back to the stoneage!
 class db_sqlite3():
     db_location = None
     

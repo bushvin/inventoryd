@@ -83,5 +83,6 @@ CREATE TABLE static_groupmembership(
     childname      CHAR(256),
     childtype      CHAR(64),
     priority       INT DEFAULT 1000,
-    apply_to_hosts CHAR(256));
+    apply_to_hosts CHAR(256),
+    include_hosts  INT DEFAULT 1);
 
