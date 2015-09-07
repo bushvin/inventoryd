@@ -132,36 +132,26 @@ class db_sqlite3():
         return True
         
     def commitHostsCache(self, history_id, facts):
-        query = list()
         for el in facts:
-            query.append("INSERT INTO `cache_vars` (`history_id`,`name`,`type`,`fact`,`value`) VALUES ('%d','%s','hostvar','%s','%s');" % (history_id, el["hostname"], el["fact"], json.dumps(el["value"])))
+            query = "INSERT INTO `cache_vars` (`history_id`,`name`,`type`,`fact`,`value`) VALUES ('%d','%s','hostvar','%s','%s');" % (history_id, el["hostname"], el["fact"], json.dumps(el["value"]))
+            self.commit(query)
             
-        if len(query) > 0:
-            self.commit(" ".join(query))
         return True
     
     def commitGroupsCache(self, history_id, facts, hosts, children):
-        query = list()
         for el in facts:
-            query.append("INSERT INTO `cache_vars` (`history_id`,`name`,`type`,`fact`,`value`) VALUES ('%d','%s','groupvar','%s','%s');" % (history_id, el["groupname"], el["fact"], json.dumps(el["value"])))
+            query = "INSERT INTO `cache_vars` (`history_id`,`name`,`type`,`fact`,`value`) VALUES ('%d','%s','groupvar','%s','%s');" % (history_id, el["groupname"], el["fact"], json.dumps(el["value"]))
+            self.commit(query)
 
-        if len(query) > 0:
-            self.commit(" ".join(query))
-        
-        query = list()
         for el in hosts:
-            query.append("INSERT INTO `cache_groupmembership` (`history_id`,`name`,`childname`,`childtype`) VALUES ('%d','%s','%s','host');" % (history_id,el["groupname"],el["host"])))
+            query = "INSERT INTO `cache_groupmembership` (`history_id`,`name`,`childname`,`childtype`) VALUES ('%d','%s','%s','host');" % (history_id,el["groupname"],el["host"])
+            self.commit(query)
 
-        if len(query) > 0:
-            self.commit(" ".join(query))
-        
-        query = list()
+
         for el in children:
-            query.append("INSERT INTO `cache_groupmembership` (`history_id`,`name`,`childname`,`childtype`) VALUES ('%d','%s','%s','group');" % (history_id,el["groupname"],el["child"]))
+            query = "INSERT INTO `cache_groupmembership` (`history_id`,`name`,`childname`,`childtype`) VALUES ('%d','%s','%s','group');" % (history_id,el["groupname"],el["child"])
+            self.commit(query)
 
-        if len(query) > 0:
-            self.commit(" ".join(query))
-                
         return True
 
     def deleteHistory(self, keep_history):
