@@ -1,5 +1,5 @@
 # inventoryd
-A clever inventory daemon for Ansible 1.x, based on the clever ideas of [Dag Wieërs](https://github.com/dagwieers), [Jeroen Hoekx][https://github.com/jhoekx], [Maurice](https://github.com/mho), Raf Van Opdorp, [Serge van Ginderachter](https://github.com/srvg), Tom Kersten and [Vincent Van der Kussen](https://github.com/vincentvdk) and myself.
+A clever inventory daemon for Ansible 1.x, based on the clever ideas of [Dag Wieërs](https://github.com/dagwieers), [Jeroen Hoekx](https://github.com/jhoekx), [Maurice](https://github.com/mho), Raf Van Opdorp, [Serge van Ginderachter](https://github.com/srvg), Tom Kersten and [Vincent Van der Kussen](https://github.com/vincentvdk) and myself.
 ## disclaimer
 inventoryd is currently in development, and any feature may break at any given time.
 **Use at your own risk!**
