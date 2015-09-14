@@ -14,7 +14,7 @@ class connector(object):
     _schema = dict()
     _args = [ {'name':'prefix', 'mandatory':False, 'default':'' },
               {'name':'schema', 'mandatory':True, 'default':None } ]
-    _defaultItemSchema = { 'datatype':'string', 'index':-1, 'name':'', 'default': '' }
+    _defaultItemSchema = { 'datatype':'string', 'index':-1, 'name':'', 'default': '', 'exclude': False }
     connector_name = ''
     rc = 0
     message = ""
@@ -53,8 +53,6 @@ class connector(object):
         itemschema = copy.copy(self._defaultItemSchema)
         itemschema.update(self.getSchemaItem(item))
         
-        
-        
         if itemschema["datatype"] == 'int' or itemschema["datatype"] == 'integer':
             try:
                 int(value)
@@ -79,6 +77,14 @@ class connector(object):
             
         return value
     
+    def excludeFact(self, fact_index):
+        for el in self._schema:
+            itemschema = copy.copy(self._defaultItemSchema)
+            itemschema.update(el)
+            if itemschema["index"] == fact_index:
+                return itemschema["exclude"]
+        return True
+        
     def getSchemaFactName(self, fact_index):
         for el in self._schema:
             if el["index"] == fact_index:
@@ -92,8 +98,10 @@ class connector(object):
                 arg["name"]
             except:
                 inventoryd.logmessage(severity="crit", message="argument name is missing.")
-                #print "argument name missing!"
-                sys.exit(1)
+                self.rc = 1
+                self.message = "argument name is missing."
+                #sys.exit(1)
+                return False
             
             try:
                 arg["mandatory"]
@@ -107,6 +115,7 @@ class connector(object):
             
             newargs.append(arg)
             self._args = newargs
+        return True
 
     def checkParameters(self):
         for arg in self._args:
@@ -114,9 +123,11 @@ class connector(object):
                 try:
                     self._parameters[arg["name"]]
                 except:
-                    #print "%s is a mandatory argument for the %s connector." % ( arg["name"], self.connector_name )
                     inventoryd.logmessage(severity="crit", message="%s is a mandatory argument for the %s connector." % ( arg["name"], self.connector_name))
-                    sys.exit(1)
+                    self.rc = 1
+                    self.message = "%s is a mandatory argument for the %s connector." % ( arg["name"], self.connector_name)
+                    #sys.exit(1)
+                    return False
         
         return True
 
@@ -128,7 +139,6 @@ class connector(object):
                 argfound = True
                 break
         if argfound is False:
-            #print "The requested parameter (%s) is not known to the %s connector." % ( parametername, self.connector_name )
             inventoryd.logmessage(severity="crit", message="The requested parameter (%s) is not known to the %s connector." % ( parametername, self.connector_name))
             sys.exit(1)
         
@@ -141,11 +151,11 @@ class connector(object):
             
     def getHosts(self):
         self.checkParameters()
-        return "getHosts"
+        return list()
     
     def getGroups(self):
         self.checkParameters()
-        return "getGroups"
+        return list()
     
     def showHelp(self):
         return "showHelp"
@@ -188,8 +198,12 @@ class connector(object):
         hostname_index = self.getSchemaItem("hostname", "index")
         
         for row in data:
-            facts = facts + [ { 'hostname':row[hostname_index], 'fact':self.getSchemaFactName(fact), 'value':self.applySchema(fact,row[fact]) } for fact in row ]
-            self._hostlist.append(row[hostname_index])
+            for fact in row:
+                if self.excludeFact(fact) is False:
+                    facts.append({ 'hostname':row[hostname_index], 'fact':self.getSchemaFactName(fact), 'value':self.applySchema(fact,row[fact]) })
+                    self._hostlist.append(row[hostname_index])
+            
+                #facts = facts + [ { 'hostname':row[hostname_index], 'fact':self.getSchemaFactName(fact), 'value':self.applySchema(fact,row[fact]) } for fact in row ]
         
         return facts
     

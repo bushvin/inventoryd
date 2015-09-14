@@ -15,9 +15,14 @@ class connector_uri(inventoryd.connector):
                  { 'name': 'delimiter', 'mandatory': False, 'default': ',' },
                  { 'name': 'quotechar', 'mandatory': False, 'default': '"' },
                  { 'name': 'header', 'mandatory': False, 'default': None } ]
-        self.updateArguments(args)
+        if self.updateArguments(args) is False:
+            return list()
+            
         super(connector_uri,self).getHosts()
         
+        if self.rc != 0:
+            return list()
+            
         data = self.getFileContents()
         if data is None:
             self._hosts = dict()
@@ -33,9 +38,14 @@ class connector_uri(inventoryd.connector):
         args = [ { 'name':'uri', 'mandatory':True, 'default':None },
                  { 'name':'format', 'mandatory':False, 'default': 'json' },
                  { 'name':'insecure', 'mandatory': False, 'default': False } ]
-        self.updateArguments(args)
+        if self.updateArguments(args) is False:
+            return list()
+            
         super(connector_uri,self).getGroups()
-        
+
+        if self.rc != 0:
+            return list()
+
         data = self.getFileContents()
         if data is None:
             self._groups = dict()
