@@ -27,10 +27,8 @@ def getconfig(configpath):
                     'log_facility': 'local1',
                     'log_level': 'debug' },
                'housekeeper': {
-                    'frequency': 3600,
+                    'schedule':'@hourly',
                     'history': 24 },
-               'connector_sync': {
-                    'frequency': 60 },
                'rest_server': {
                     'listen': '0.0.0.0',
                     'http_port': 8080,
@@ -50,9 +48,7 @@ def getconfig(configpath):
                 newini[section] = {}
             newini[section][option] = ini[section][option]
 
-    newini["housekeeper"]["frequency"] = int(newini["housekeeper"]["frequency"])
     newini["housekeeper"]["history"] = int(newini["housekeeper"]["history"])
-    newini["connector_sync"]["frequency"] = int(newini["connector_sync"]["frequency"])
     newini["rest_server"]["http_port"] = int(newini["rest_server"]["http_port"])
     newini["rest_server"]["https_port"] = int(newini["rest_server"]["https_port"])
     newini["inventory"]["create_all"] = bool(newini["inventory"]["create_all"])

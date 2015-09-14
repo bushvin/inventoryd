@@ -10,6 +10,7 @@ from connector_uri import connector_uri
 from logmessage import logmessage
 from daemon import daemon
 from jinja2 import Template
+from cronpare import cronpare
 import copy
 import re
 

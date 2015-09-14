@@ -3,6 +3,7 @@ import inventoryd.connector_uri as connector_uri
 from threading import Timer
 import os
 import sys
+import datetime
 from threading import Thread
 
 class daemon:
@@ -10,6 +11,9 @@ class daemon:
     _cli = None
     _https_restserver = None
     _http_restserver = None
+    _scheduleTimer = None
+    _housekeeper_lock = False
+    _connector_lock = False
     
     def __init__(self):
         self._cfg = inventoryd.localData.cfg
@@ -22,15 +26,13 @@ class daemon:
             inventoryd.logmessage(severity="warn", message="%s could not be found. Does it exist?" % self._cfg["inventoryd"]["connector_path"])
 
     def start(self):
-        #self._createPID()
-        self._startHousekeeper()
-        self._startConnectorSync()
+        self._createPID()
         self._startRESTserver()
+        self._startScheduler()
 
     def stop(self, force = False):
-        self._stopHousekeeper()
-        self._stopConnectorSync()
         self._stopRESTserver()
+        self._stopScheduler()
         self._destroyPID()
     
     def _createPID(self):
@@ -63,113 +65,121 @@ class daemon:
         except:
                 inventoryd.logmessage(severity="crit", message="Could not remove pidfile.")
                 sys.exit(1)
-            
-
-        
-    def _startHousekeeper(self):
-        interval = int(self._cfg["housekeeper"]["frequency"]) * 60
-        inventoryd.logmessage(severity="info", message="Starting housekeeping timer")
-        inventoryd.logmessage(severity="info", message="Housekeeping frequency: once every %d seconds" % interval)
-        self._runHousekeeper()
-
-    def _stopHousekeeper(self):
-        inventoryd.logmessage(severity="info", message="Stopping the housekeeper timer")
-        self._HouseKeeperTimer.cancel()
     
-    def _runHousekeeper(self):
-        inventoryd.logmessage(severity="info", message="Starting Housekeeping run")
-        interval = int(self._cfg["housekeeper"]["frequency"]) * 60
-        self._HouseKeeperTimer = Timer(interval, self._runHousekeeper)
-        self._HouseKeeperTimer.start()
-
+    def _startScheduler(self):
+        inventoryd.logmessage(severity="info", message="Starting the task scheduler")
+        inventoryd.logmessage(severity="info", message="Housekeeping schedule: %s" % self._cfg["housekeeper"]["schedule"])
         db = inventoryd.db(self._cfg["db"])
-        id_list = db.deleteHistory(self._cfg["housekeeper"]["history"])
+        for el in db.getConnectors():
+            inventoryd.logmessage(severity="info", message="Sync connector '%s' schedule: %s" % (el["name"], el["schedule"]))
         db.disconnect()
-
-        inventoryd.logmessage(severity="info", message="Ending Housekeeping run")
-
-
-        
-    def _startConnectorSync(self):
-        interval = int(self._cfg["connector_sync"]["frequency"]) * 60
-        inventoryd.logmessage(severity="info", message="Starting Connector Sync timer")
-        inventoryd.logmessage(severity="info", message="Connector Sync frequency: once every %d seconds" % interval)
-        self._runConnectorySync()
+        interval = 61 - datetime.datetime.now().second
+        self._scheduleTimer = Timer(interval, self._runScheduler)
+        self._scheduleTimer.start()
     
-    def _stopConnectorSync(self):
-        inventoryd.logmessage(severity="debug", message="Stopping the Connector sync timer")
-        self._ConnectorSyncTimer.cancel()
-
-    def _runConnectorySync(self):
-        inventoryd.logmessage(severity="info", message="Starting the Connector Sync run")
-        interval = int(self._cfg["connector_sync"]["frequency"]) * 60
-        self._ConnectorSyncTimer = Timer(interval, self._runConnectorySync)
-        self._ConnectorSyncTimer.start()
+    def _stopScheduler(self):
+        if self._scheduleTimer is not None:
+            inventoryd.logmessage(severity="info", message="Stopping the task scheduler")
+            self._scheduleTimer.cancel()
         
+    def _runScheduler(self):
+        inventoryd.logmessage(severity="info", message="Starting scheduled tasks")
+        interval = 61 - datetime.datetime.now().second
+        inventoryd.logmessage(severity="info", message="Next scheduled tasks run in %ds" %interval)
+        self._scheduleTimer = Timer(interval, self._runScheduler)
+        self._scheduleTimer.start()
+        cron = inventoryd.cronpare()
         db = inventoryd.db(self._cfg["db"])
-        connectors = db.getConnectors()
-        for c in connectors:
-            hid = db.startHistoryItem(c["id"])
-            
-            try:
-                exec "connector_%s" % c["connector"]
-            except:
-                libpath = self._cfg["inventoryd"]["connector_path"]
-                
-                inventoryd.logmessage(severity="debug", message="Connector %s hasn't been imported yet. Attempting." % c["connector"])
-                execute_connector = False
-                
-                if libpath is not None and os.path.isdir(self._cfg["inventoryd"]["connector_path"]):
-                    inventoryd.logmessage(severity="debug", message="inventoryd.connector_path is set and connector library exists!")
-                    try:
-                        exec "import connector_%s" % c["connector"]
-                    except:
-                        inventoryd.logmessage(severity="crit", message="Could not import the connector %s" % c["connector"])
-                    else:
-                        exec "import connector_%s" % c["connector"]
-                        execute_connector = True
-                        
-                elif libpath is not None:
-                    inventoryd.logmessage(severity="err", message="inventoryd.connector_path is set but connector library doesn't exist!")
-                elif libpath is None:
-                    inventoryd.logmessage(severity="debug", message="inventoryd.connector_path is not set")
-            else:
-                execute_connector = True
-            
-            if execute_connector is True:
-                inventoryd.logmessage(severity="info", message="Syncing %s" % c["name"])
-                exec "cc = connector_%s(c['parameters'])" % c["connector"]
-                if c["type"] == "hosts":
-                    facts = cc.getHosts()
-                    if cc.rc == 0:
-                        inventoryd.logmessage(severity="info", message="%s - synchronizing %d hostvar facts" % (c["name"], len(facts)))
-                        db.commitHostsCache(hid,facts)
-                        inventoryd.logmessage(severity="info", message="%s - %d hostvar facts synchronized" % (c["name"], len(facts)))
-                    else:
-                        inventoryd.logmessage(severity="error", message="%s - An error occurred synchronizing hostvars. RC:%d" % (c["name"],cc.rc))
-                        inventoryd.logmessage(severity="error", message="%s - %s" % (c["name"],cc.message))
+        if self._connector_lock is False:
+            self._connector_lock = True
+            for el in db.getConnectors():
+                inventoryd.logmessage(severity="info", message="Checking schedule for %s:%s" % (el["name"], el["schedule"]))
+                if cron.compare(el["schedule"]) is True:
+                    inventoryd.logmessage(severity="info", message="Starting sync run for %s" % el["name"])
+                    self._sync_connector(el["id"])
+                    inventoryd.logmessage(severity="info", message="Ending sync run for %s" % el["name"])
+            self._connector_lock = False
+
+        if self._connector_lock is False:
+            if cron.compare(self._cfg["housekeeper"]["schedule"]) is True:
+                if self._housekeeper_lock is False:
+                    self._housekeeper_lock = True
+                    inventoryd.logmessage(severity="info", message="Starting Housekeeping run")
+                    db.deleteHistory(self._cfg["housekeeper"]["history"])
+                    inventoryd.logmessage(severity="info", message="Ending Housekeeping run")
+                    self._housekeeper_lock = False
                 else:
-                    facts, hosts, children = cc.getGroups()
-                    if cc.rc == 0:
-                        inventoryd.logmessage(severity="info", message="%s - synchronizing %d groupvar facts" % (c["name"], len(facts)))
-                        inventoryd.logmessage(severity="info", message="%s - synchronizing %d group host memberships" % (c["name"], len(hosts)))
-                        inventoryd.logmessage(severity="info", message="%s - synchronizing %d group group memberships" % (c["name"], len(children)))
-                        db.commitGroupsCache(hid,facts, hosts, children)
-                        inventoryd.logmessage(severity="info", message="%s - %d groupvar facts synchronized" % (c["name"], len(facts)))
-                        inventoryd.logmessage(severity="info", message="%s - %d group host memberships synchronized" % (c["name"], len(hosts)))
-                        inventoryd.logmessage(severity="info", message="%s - %d group group memberships synchronized" % (c["name"], len(children)))
-                    else:
-                        inventoryd.logmessage(severity="error", message="%s - An error occurred synchronizing groups. RC:%d" % (c["name"], cc.rc))
-                        inventoryd.logmessage(severity="error", message="%s - %s" % (c["name"], cc.message))
-                    
-                db.endHistoryItem(hid, cc.rc, cc.message)
-                inventoryd.logmessage(severity="info", message="Syncing %s done" % c["name"])
-            else:
-                inventoryd.logmessage(severity="info", message="Could not start %s sync" % c["name"])
+                    inventoryd.logmessage(severity="info", message="Skipping Housekeeping run. Still busy.")
+        else:
+            inventoryd.logmessage(severity="info", message="Skipping Housekeeping run. Connector Sync is still busy.")
             
         db.disconnect()
-        inventoryd.logmessage(severity="info", message="Ending the Connector Sync run")
-
+        inventoryd.logmessage(severity="info", message="Endinging scheduled tasks")
+        
+    
+    def _sync_connector(self, connector_id):
+        db = inventoryd.db(self._cfg["db"])
+        connector = db.getConnector(connector_id)
+        if connector is None:
+            return False
+        hid = db.startHistoryItem(connector["id"])
+        
+        try:
+            exec "connector_%s" % connector["connector"]
+        except:
+            libpath = self._cfg["inventoryd"]["connector_path"]
+            inventoryd.logmessage(severity="debug", message="Connector %s hasn't been imported yet. Attempting." % connector["connector"])
+            execute_connector = False
+            
+            if libpath is not None and os.path.isdir(self._cfg["inventoryd"]["connector_path"]):
+                inventoryd.logmessage(severity="debug", message="inventoryd.connector_path is set and connector library exists!")
+                try:
+                    exec "import connector_%s" % connector["connector"]
+                except:
+                    inventoryd.logmessage(severity="crit", message="Could not import the connector %s" % connector["connector"])
+                else:
+                    exec "import connector_%s" % connector["connector"]
+                    execute_connector = True
+                    
+            elif libpath is not None:
+                inventoryd.logmessage(severity="err", message="inventoryd.connector_path is set but connector library doesn't exist!")
+            elif libpath is None:
+                inventoryd.logmessage(severity="debug", message="inventoryd.connector_path is not set")
+        else:
+            execute_connector = True
+            
+        if execute_connector is True:
+            inventoryd.logmessage(severity="info", message="Syncing %s" % connector["name"])
+            exec "cc = connector_%s(connector['parameters'])" % connector["connector"]
+            if connector["type"] == "hosts":
+                facts = cc.getHosts()
+                if cc.rc == 0:
+                    inventoryd.logmessage(severity="info", message="%s - synchronizing %d hostvar facts for %d hosts" % (connector["name"], len(facts), int(cc.getHostCount())))
+                    db.commitHostsCache(hid,facts)
+                    inventoryd.logmessage(severity="info", message="%s - %d hostvar facts synchronized" % (connector["name"], len(facts)))
+                else:
+                    inventoryd.logmessage(severity="error", message="%s - An error occurred synchronizing hostvars. RC:%d" % (connector["name"],cc.rc))
+                    inventoryd.logmessage(severity="error", message="%s - %s" % (connector["name"],cc.message))
+            else:
+                facts, hosts, children = cc.getGroups()
+                if cc.rc == 0:
+                    inventoryd.logmessage(severity="info", message="%s - synchronizing %d groupvar facts" % (connector["name"], len(facts)))
+                    inventoryd.logmessage(severity="info", message="%s - synchronizing %d group host memberships" % (connector["name"], len(hosts)))
+                    inventoryd.logmessage(severity="info", message="%s - synchronizing %d group group memberships" % (connector["name"], len(children)))
+                    db.commitGroupsCache(hid,facts, hosts, children)
+                    inventoryd.logmessage(severity="info", message="%s - %d groupvar facts synchronized" % (connector["name"], len(facts)))
+                    inventoryd.logmessage(severity="info", message="%s - %d group host memberships synchronized" % (connector["name"], len(hosts)))
+                    inventoryd.logmessage(severity="info", message="%s - %d group group memberships synchronized" % (connector["name"], len(children)))
+                else:
+                    inventoryd.logmessage(severity="error", message="%s - An error occurred synchronizing groups. RC:%d" % (connector["name"], cc.rc))
+                    inventoryd.logmessage(severity="error", message="%s - %s" % (connector["name"], cc.message))
+                
+            db.endHistoryItem(hid, cc.rc, cc.message)
+            inventoryd.logmessage(severity="info", message="Syncing %s done" % connector["name"])
+        else:
+            inventoryd.logmessage(severity="info", message="Could not start %s sync" % connector["name"])
+        
+        db.disconnect()
 
     def _startRESTserver(self):
         inventoryd.logmessage(severity="info", message="Starting the REST server")

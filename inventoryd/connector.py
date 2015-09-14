@@ -8,6 +8,7 @@ import copy
 
 class connector(object):
     _hosts = dict()
+    _hostlist = list()
     _groups = dict()
     _parameters = dict()
     _schema = dict()
@@ -25,6 +26,10 @@ class connector(object):
     def _setParameters(self, parameters = dict()):
         self._parameters = parameters
         self._schema = self.getParameter("schema")
+    
+    def getHostCount(self):
+        hosts = list(set(copy.copy(self._hostlist)))
+        return len(hosts)
     
     def getSchemaItem(self, item, item_property = None):
         for el in self._schema:
@@ -86,7 +91,8 @@ class connector(object):
             try:
                 arg["name"]
             except:
-                print "argument name missing!"
+                inventoryd.logmessage(severity="crit", message="argument name is missing.")
+                #print "argument name missing!"
                 sys.exit(1)
             
             try:
@@ -108,7 +114,8 @@ class connector(object):
                 try:
                     self._parameters[arg["name"]]
                 except:
-                    print "%s is a mandatory argument the %s connector." % ( arg["name"], self.connector_name )
+                    #print "%s is a mandatory argument for the %s connector." % ( arg["name"], self.connector_name )
+                    inventoryd.logmessage(severity="crit", message="%s is a mandatory argument for the %s connector." % ( arg["name"], self.connector_name))
                     sys.exit(1)
         
         return True
@@ -121,7 +128,8 @@ class connector(object):
                 argfound = True
                 break
         if argfound is False:
-            print "The requested parameter (%s) is not known to the %s connector." % ( parametername, self.connector_name )
+            #print "The requested parameter (%s) is not known to the %s connector." % ( parametername, self.connector_name )
+            inventoryd.logmessage(severity="crit", message="The requested parameter (%s) is not known to the %s connector." % ( parametername, self.connector_name))
             sys.exit(1)
         
         try:
@@ -144,7 +152,7 @@ class connector(object):
     
     def showConnectionParameters(self):
         return "showConnectionParameters"
-
+    
     def addPrefixToList(self, varslist):
         if self.getParameter("prefix") == "":
             return True
@@ -181,6 +189,7 @@ class connector(object):
         
         for row in data:
             facts = facts + [ { 'hostname':row[hostname_index], 'fact':self.getSchemaFactName(fact), 'value':self.applySchema(fact,row[fact]) } for fact in row ]
+            self._hostlist.append(row[hostname_index])
         
         return facts
     
@@ -221,7 +230,8 @@ class connector(object):
             row = dict(zip(fields,row))
             
             facts = facts + [ { 'hostname':row[hostname_index], 'fact':self.getSchemaFactName(fact), 'value':self.applySchema(fact,row[fact]) } for fact in row ]
-        
+            self._hostlist.append(row[hostname_index])
+            
         return facts
 
     def convertCSVGroups(self, csv_data = ""):

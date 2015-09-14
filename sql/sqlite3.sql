@@ -51,6 +51,7 @@ CREATE TABLE sync_connector(
     id             INTEGER PRIMARY KEY AUTOINCREMENT,
     enabled        INT DEFAULT 1,
     name           CHAR(64) DEFAULT "",
+    schedule       CHAR(64) DEFAULT "@hourly",
     connector      CHAR(64) DEFAULT "none",
     type           CHAR(64) DEFAULT 'hosts',
     parameters     TEXT,

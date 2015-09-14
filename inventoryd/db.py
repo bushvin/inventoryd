@@ -29,6 +29,9 @@ class db():
     def commit(self, query):
         return self._dbo.commit(query)
     
+    def getConnector(self, connector_id):
+        return self._dbo.getConnector(connector_id)
+        
     def getConnectors(self, enabled = True):
         return self._dbo.getConnectors(enabled)
     

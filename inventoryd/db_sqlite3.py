@@ -56,6 +56,15 @@ class db_sqlite3():
         value = value.replace('\'','\'\'')
         return value
     
+    def getConnector(self, connector_id):
+        query = "SELECT * FROM `sync_connector` WHERE `id`='%d';" % int(connector_id)
+        res = self.query(query)
+        if len(res) == 1:
+            res[0]["parameters"] = json.loads(res[0]["parameters"])
+            return res[0]
+        else:
+            return None
+    
     def getConnectors(self, enabled = True):
         if enabled is True:
             qfilter = "WHERE `enabled`='1'"
