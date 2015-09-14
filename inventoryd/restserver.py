@@ -22,15 +22,21 @@ def showInventory(user = None, payload = None, handler = None):
     groups = dict()
     res = { '_meta': { 'hostvars': {} } }
     tdb = inventoryd.db(inventoryd.localData.cfg["db"])
-
-    for el in tdb.getHostCache():
-        try:
-            hosts[el["hostname"]]
-        except:
-            hosts[el["hostname"]] = dict()
-        
-        hosts[el["hostname"]].update({ el["fact"]:el["value"] })
     
+    inventoryd.logmessage(severity="debug", message="creating hostvars - begin")
+    thc = tdb.getHostCache()
+    
+    for el in thc:
+        try:
+            hosts[thc[el]["hostname"]]
+        except:
+            hosts[thc[el]["hostname"]] = dict()
+        
+        hosts[thc[el]["hostname"]].update({ thc[el]["fact"]:thc[el]["value"] })
+    
+    inventoryd.logmessage(severity="debug", message="creating hostvars - end")
+    
+    inventoryd.logmessage(severity="debug", message="creating groupvars - begin")
     tgc = tdb.getGroupCache()
     for el in tgc["vars"]:
         try:
@@ -72,7 +78,9 @@ def showInventory(user = None, payload = None, handler = None):
             el["apply_to_hosts"] = ".*"
 
         groups[el["groupname"]]["apply_to_hosts"] = el["apply_to_hosts"]
+    inventoryd.logmessage(severity="debug", message="creating groupvars - end")
 
+    inventoryd.logmessage(severity="debug", message="rendering groups - begin")
     groups_rendered = dict()
     for groupname in groups:
         for hostname in hosts:
@@ -90,6 +98,7 @@ def showInventory(user = None, payload = None, handler = None):
                     group["hosts"].append(hostname)
 
                 groups_rendered.update( {newgroupname: group} )
+    inventoryd.logmessage(severity="debug", message="rendering groups - end")
             
     res["_meta"]["hostvars"] = hosts
     res.update(groups_rendered)
