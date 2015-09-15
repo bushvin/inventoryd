@@ -1,3 +1,21 @@
+# Copyright (c) 2015 William Leemans <willie@elaba.net>
+#
+# This file is part of inventoryd
+#
+# inventoryd is free software; you can redistribute it and/or modify it under the
+# terms of the GNU Lesser General Public License as published by the Free
+# Software Foundation; either version 3 of the License, or (at your option)
+# any later version.
+#
+# inventoryd is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+# A PARTICULAR PURPOSE.  See the GNU Lesser General Public License for more
+# details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with inventoryd; if not, write to the Free Software Foundation, Inc.,
+# 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA.
+
 from BaseHTTPServer import BaseHTTPRequestHandler,HTTPServer
 from SocketServer import ThreadingMixIn
 import threading
@@ -715,7 +733,18 @@ class RESTserver():
     _port = -1
     _certificate_path = None
     
-    def __init__(self, ip, port = -1, certificate_path = None, keyfile_path = None):
+    def __init__(self, ip = "127.0.0.1", port = -1, certificate_path = None, keyfile_path = None):
+        """Define a new REST server for inventoryd
+
+parameters:
+ip                ip address to listen on (default: 127.0.0.1)
+port              port to listen on. specify -1 to not instantiate a REST server
+certificate_path  path to the ssl certificate file  
+keyfile_path      path to the ssl keyfile
+
+To generate a new certifcate and keyfile pair, execute the following as root:
+sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout server.key -out server.crt
+"""
         self._ip = ip
         self._port = port
         self._certificate_path = certificate_path
@@ -736,6 +765,7 @@ class RESTserver():
         return None
         
     def start(self):
+        """Start the REST server"""
         if self._port != -1:
             inventoryd.logmessage(severity="debug", message="Starting REST server (%s:%d)." % (self._ip, self._port))
             self.server_thread = threading.Thread(target=self.server.serve_forever)
@@ -744,11 +774,13 @@ class RESTserver():
         return True
     
     def waitForThread(self):
+        """Wait for REST server thread"""
         if self._port != -1:
             self.server_thread.join(None)
         return True
     
     def stop(self):
+        """Stop the REST server"""
         if self._port != -1:
             inventoryd.logmessage(severity="debug", message="Stopping REST server (%s:%d)." % (self._ip, self._port))
             self.server.shutdown()
