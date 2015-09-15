@@ -6,7 +6,6 @@ import inventoryd
 import json
 import ssl
 import inventoryd
-#from inventoryd import inventory
 from jinja2 import Template
 import copy
 
@@ -24,7 +23,7 @@ def showInventory(user = None, payload = None, handler = None):
     tdb = inventoryd.db(inventoryd.localData.cfg["db"])
     
     inventoryd.logmessage(severity="debug", message="creating hostvars - begin")
-    thc = tdb.getHostCache()
+    thc = tdb.getHostCache()["vars"]
     
     for el in thc:
         try:
@@ -47,12 +46,6 @@ def showInventory(user = None, payload = None, handler = None):
             groups[tgc["vars"][el]["groupname"]] = {'vars':{}}
         
         groups[tgc["vars"][el]["groupname"]]["vars"].update({ tgc["vars"][el]["fact"]:tgc["vars"][el]["value"] })
-        """
-        try:
-            tgc["vars"][el]["apply_to_hosts"]
-        except:
-            tgc["vars"][el]["apply_to_hosts"] = ".*"
-        """
         
         groups[tgc["vars"][el]["groupname"]]["apply_to_hosts"] = tgc["vars"][el]["apply_to_hosts"]
 
@@ -76,41 +69,86 @@ def showInventory(user = None, payload = None, handler = None):
                 groups[tgc["membership"][el]["groupname"]]["children"] = []
             groups[tgc["membership"][el]["groupname"]]["children"].append(tgc["membership"][el]["childname"])
         
-        """    
-        try:
-            tgc["membership"][el]["apply_to_hosts"]
-        except:
-            tgc["membership"][el]["apply_to_hosts"] = ".*"
-        """
-        
         groups[tgc["membership"][el]["groupname"]]["apply_to_hosts"] = tgc["membership"][el]["apply_to_hosts"]
         groups[tgc["membership"][el]["groupname"]]["include_hosts"] = tgc["membership"][el]["include_hosts"]
+        groups[tgc["membership"][el]["groupname"]]["childtype"] = tgc["membership"][el]["childtype"]
+        groups[tgc["membership"][el]["groupname"]]["childname"] = tgc["membership"][el]["childname"]
+        
     inventoryd.logmessage(severity="debug", message="creating groupvars - end")
 
     inventoryd.logmessage(severity="debug", message="rendering groups - begin")
     groups_rendered = dict()
     for groupname in groups:
+        try:
+            groups[groupname]["hosts"]
+        except:
+            groups[groupname]["hosts"] = list()
+
+        try:
+            groups[groupname]["children"]
+        except:
+            groups[groupname]["children"] = list()
+
         for hostname in hosts:
             if re.match(groups[groupname]["apply_to_hosts"], hostname) is not None:
                 tg = Template(groupname)
                 newgroupname = tg.render(hosts[hostname])
-                group = copy.copy(groups[groupname])
-                del(group["apply_to_hosts"])
-                if groupname != newgroupname:
-                    newgroupname = re.sub('\s+','_',newgroupname)
-                    try:
-                        group["hosts"]
-                    except:
-                        group["hosts"] = list()
-                    group["hosts"].append(hostname)
-
-                groups_rendered.update( {newgroupname: group} )
+                newgroupname = re.sub('\s+','_',newgroupname)
+            else:
+                newgroupname = groupname
+            
+            try:
+                groups_rendered[newgroupname]
+            except:
+                groups_rendered[newgroupname] = dict()
+            
+            try:
+                groups_rendered[newgroupname]["hosts"]
+            except:
+                groups_rendered[newgroupname]["hosts"] = list()
+                
+            try:
+                groups_rendered[newgroupname]["children"]
+            except:
+                groups_rendered[newgroupname]["children"] = list()
+            
+            if groups[groupname]["include_hosts"] == 1 and groups[groupname]["childtype"] == "host" and groups[groupname]["childname"] not in groups_rendered[newgroupname]["hosts"]:
+                groups_rendered[newgroupname]["hosts"].append(groups[groupname]["childname"])
+            elif groups[groupname]["childtype"] == "group":
+                tc = Template(groups[groupname]["childname"])
+                childgroupname = tc.render(hosts[hostname])
+                childgroupname = re.sub('\s+','_',childgroupname)
+                if childgroupname not in groups_rendered[newgroupname]["children"]:
+                    groups_rendered[newgroupname]["children"].append(childgroupname)
+                try:
+                   groups_rendered[childgroupname]
+                except:
+                    groups_rendered[childgroupname] = { 'hosts':[], 'children':[] }
+            
+            if groups[groupname]["include_hosts"] == 1 :
+                groups_rendered[newgroupname]["hosts"].append(hostname)
+                
+                        
     inventoryd.logmessage(severity="debug", message="rendering groups - end")
             
     res["_meta"]["hostvars"] = hosts
+    for el in groups_rendered:
+        if len(groups_rendered[el]["hosts"]) == 0:
+            del(groups_rendered[el]["hosts"])
+        else:
+            groups_rendered[el]["hosts"] = list(set(groups_rendered[el]["hosts"]))
+            groups_rendered[el]["hosts"].sort()
+            
+        if len(groups_rendered[el]["children"]) == 0:
+            del(groups_rendered[el]["children"])
+        else:
+            groups_rendered[el]["children"] = list(set(groups_rendered[el]["children"]))
+            groups_rendered[el]["children"].sort()
+            
     res.update(groups_rendered)
     if inventoryd.localData.cfg["inventory"]["create_all"] is True:
-        res["all"] = [ el for el in res["_meta"]["hostvars"] ]
+        res["all"] = { 'hosts': list(set([ el for el in res["_meta"]["hostvars"] ])) }
+        res["all"]["hosts"].sort()
     if inventoryd.localData.cfg["inventory"]["create_localhost"] is True:
         res["_meta"]["hostvars"]["localhost"] = { 'ansible_connection': inventoryd.localData.cfg["inventory"]["localhost_connection"] }
     tdb.disconnect()

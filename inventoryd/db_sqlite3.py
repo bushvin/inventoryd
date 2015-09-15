@@ -305,21 +305,21 @@ class db_sqlite3():
     def getHostCache(self):
         connectors = sorted(self.getConnectors(True), key=lambda k: k["priority"])
         
-        hostscache = dict()
+        hostscache = { "vars": dict() }
         for c in connectors:
             if c["type"] == "hosts":
                 cache = self.getConnectorHostCache(c["id"])
                 for c_el in cache["vars"]:
                     index = "%s::%s" % (cache["vars"][c_el]["hostname"], cache["vars"][c_el]["fact"])
                     try:
-                        hostscache[index]
+                        hostscache["vars"][index]
                     except:
-                        hostscache[index] = dict()
+                        hostscache["vars"][index] = dict()
                     
-                    hostscache[index]["hostname"] = cache["vars"][c_el]["hostname"]
-                    hostscache[index]["fact"] = cache["vars"][c_el]["fact"]
-                    hostscache[index]["value"] = cache["vars"][c_el]["value"]
-                    hostscache[index]["priority"] = cache["vars"][c_el]["priority"]
+                    hostscache["vars"][index]["hostname"] = cache["vars"][c_el]["hostname"]
+                    hostscache["vars"][index]["fact"] = cache["vars"][c_el]["fact"]
+                    hostscache["vars"][index]["value"] = cache["vars"][c_el]["value"]
+                    hostscache["vars"][index]["priority"] = cache["vars"][c_el]["priority"]
 
         staticcache = self.getStaticHostCache()
         for s_el in staticcache["vars"]:
@@ -334,18 +334,18 @@ class db_sqlite3():
             except:
                 hostscache[index]["priority"] = 0
             
-            if staticcache["vars"][s_el]["priority"] > hostscache[index]["priority"]:
-                hostscache[index]["hostname"] = staticcache["vars"][s_el]["hostname"]
-                hostscache[index]["fact"] = staticcache["vars"][s_el]["fact"]
-                hostscache[index]["value"] = staticcache["vars"][s_el]["value"]
-                hostscache[index]["priority"] = staticcache["vars"][s_el]["priority"]
+            if staticcache["vars"][s_el]["priority"] > hostscache["vars"][index]["priority"]:
+                hostscache["vars"][index]["hostname"] = staticcache["vars"][s_el]["hostname"]
+                hostscache["vars"][index]["fact"] = staticcache["vars"][s_el]["fact"]
+                hostscache["vars"][index]["value"] = staticcache["vars"][s_el]["value"]
+                hostscache["vars"][index]["priority"] = staticcache["vars"][s_el]["priority"]
             
         return hostscache
     
     def getGroupCache(self):
         connectors = sorted(self.getConnectors(True), key=lambda k: k["priority"])
         
-        groupcache = { 'vars':[], 'membership':[] }
+        groupcache = { 'vars': dict(), 'membership':dict() }
         
         for c in connectors:
             cache = self.getConnectorGroupCache(c["id"])
@@ -353,67 +353,68 @@ class db_sqlite3():
                 for c_el in cache["vars"]:
                     index = "%s::%s" % (cache["vars"][c_el]["groupname"], cache["vars"][c_el]["fact"])
                     try:
-                        groupcache[index]
+                        groupcache["membership"][index]
                     except:
-                        groupcache[index] = dict()
+                        groupcache["membership"][index] = dict()
                     
-                    groupcache[index]["groupname"] = cache["vars"][c_el]["groupname"]
-                    groupcache[index]["fact"] = cache["vars"][c_el]["fact"]
-                    groupcache[index]["value"] = cache["vars"][c_el]["value"]
-                    groupcache[index]["priority"] = cache["vars"][c_el]["priority"]
+                    groupcache["vars"][index]["groupname"] = cache["vars"][c_el]["groupname"]
+                    groupcache["vars"][index]["fact"] = cache["vars"][c_el]["fact"]
+                    groupcache["vars"][index]["value"] = cache["vars"][c_el]["value"]
+                    groupcache["vars"][index]["priority"] = cache["vars"][c_el]["priority"]
 
                 for c_el in cache["membership"]:
                     index = "%s::%s::%s" % (cache["membership"][c_el]["groupname"], cache["membership"][c_el]["childname"], cache["membership"][c_el]["childtype"])
                     try:
-                        groupcache[index]
+                        groupcache["membership"][index]
                     except:
-                        groupcache[index] = dict()
+                        groupcache["membership"][index] = dict()
                     
-                    groupcache[index]["groupname"] = cache["membership"][c_el]["groupname"]
-                    groupcache[index]["childname"] = cache["membership"][c_el]["childname"]
-                    groupcache[index]["childtype"] = cache["membership"][c_el]["childtype"]
-                    groupcache[index]["priority"] = cache["membership"][c_el]["priority"]
-                    groupcache[index]["apply_to_hosts"] = cache["membership"][c_el]["apply_to_hosts"]
-                    groupcache[index]["include_hosts"] = cache["membership"][c_el]["include_hosts"]
+                    groupcache["membership"][index]["groupname"] = cache["membership"][c_el]["groupname"]
+                    groupcache["membership"][index]["childname"] = cache["membership"][c_el]["childname"]
+                    groupcache["membership"][index]["childtype"] = cache["membership"][c_el]["childtype"]
+                    groupcache["membership"][index]["priority"] = cache["membership"][c_el]["priority"]
+                    groupcache["membership"][index]["apply_to_hosts"] = cache["membership"][c_el]["apply_to_hosts"]
+                    groupcache["membership"][index]["include_hosts"] = cache["membership"][c_el]["include_hosts"]
                     
         staticcache = self.getStaticGroupCache()
         for s_el in staticcache["vars"]:
             index = "%s::%s" % (staticcache["vars"][s_el]["groupname"], staticcache["vars"][s_el]["fact"])
             try:
-                groupcache[index]
+                groupcache["vars"][index]
             except:
-                groupcache[index] = dict()
+                groupcache["vars"][index] = dict()
             
             try:
-                groupcache[index]["priority"]
+                groupcache["vars"][index]["priority"]
             except:
-                groupcache[index]["priority"] = 0
+                groupcache["vars"][index]["priority"] = 0
             
-            if staticcache["vars"][s_el]["priority"] > hostscache[index]["priority"]:
-                groupcache[index]["groupname"] = staticcache["vars"][s_el]["groupname"]
-                groupcache[index]["fact"] = staticcache["vars"][s_el]["fact"]
-                groupcache[index]["value"] = staticcache["vars"][s_el]["value"]
-                groupcache[index]["priority"] = staticcache["vars"][s_el]["priority"]
-
+            if staticcache["vars"][s_el]["priority"] > groupcache["vars"][index]["priority"]:
+                groupcache["vars"][index]["groupname"] = staticcache["vars"][s_el]["groupname"]
+                groupcache["vars"][index]["fact"] = staticcache["vars"][s_el]["fact"]
+                groupcache["vars"][index]["value"] = staticcache["vars"][s_el]["value"]
+                groupcache["vars"][index]["priority"] = staticcache["vars"][s_el]["priority"]
+        
+        print cache["membership"]
         for s_el in staticcache["membership"]:
-            index = "%s::%s::%s" % (cache["membership"][c_el]["groupname"], cache["membership"][c_el]["childname"], cache["membership"][c_el]["childtype"])
+            index = "%s::%s::%s" % (staticcache["membership"][s_el]["groupname"], staticcache["membership"][s_el]["childname"], staticcache["membership"][s_el]["childtype"])
             try:
-                groupcache[index]
+                groupcache["membership"][index]
             except:
-                groupcache[index] = dict()
+                groupcache["membership"][index] = dict()
             
             try:
-                groupcache[index]["priority"]
+                groupcache["membership"][index]["priority"]
             except:
-                groupcache[index]["priority"] = 0
+                groupcache["membership"][index]["priority"] = 0
             
-            if staticcache["membership"][s_el]["priority"] > hostscache[index]["priority"]:
-                groupcache[index]["groupname"] = cache["membership"][s_el]["groupname"]
-                groupcache[index]["childname"] = cache["membership"][s_el]["childname"]
-                groupcache[index]["childtype"] = cache["membership"][s_el]["childtype"]
-                groupcache[index]["priority"] = cache["membership"][s_el]["priority"]
-                groupcache[index]["apply_to_hosts"] = cache["membership"][s_el]["apply_to_hosts"]
-                groupcache[index]["include_hosts"] = cache["membership"][s_el]["include_hosts"]
+            if staticcache["membership"][s_el]["priority"] > groupcache["membership"][index]["priority"]:
+                groupcache["membership"][index]["groupname"] = staticcache["membership"][s_el]["groupname"]
+                groupcache["membership"][index]["childname"] = staticcache["membership"][s_el]["childname"]
+                groupcache["membership"][index]["childtype"] = staticcache["membership"][s_el]["childtype"]
+                groupcache["membership"][index]["priority"] = staticcache["membership"][s_el]["priority"]
+                groupcache["membership"][index]["apply_to_hosts"] = staticcache["membership"][s_el]["apply_to_hosts"]
+                groupcache["membership"][index]["include_hosts"] = staticcache["membership"][s_el]["include_hosts"]
                 
         return groupcache
     
