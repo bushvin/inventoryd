@@ -37,47 +37,54 @@ def showInventory(user = None, payload = None, handler = None):
     inventoryd.logmessage(severity="debug", message="creating hostvars - end")
     
     inventoryd.logmessage(severity="debug", message="creating groupvars - begin")
+
     tgc = tdb.getGroupCache()
+
     for el in tgc["vars"]:
         try:
-            groups[el["groupname"]]
+            groups[tgc["vars"][el]["groupname"]]
         except:
-            groups[el["groupname"]] = {'vars':{}}
+            groups[tgc["vars"][el]["groupname"]] = {'vars':{}}
         
-        groups[el["groupname"]]["vars"].update({ el["fact"]:el["value"] })
+        groups[tgc["vars"][el]["groupname"]]["vars"].update({ tgc["vars"][el]["fact"]:tgc["vars"][el]["value"] })
+        """
         try:
-            el["apply_to_hosts"]
+            tgc["vars"][el]["apply_to_hosts"]
         except:
-            el["apply_to_hosts"] = ".*"
-
-        groups[el["groupname"]]["apply_to_hosts"] = el["apply_to_hosts"]
+            tgc["vars"][el]["apply_to_hosts"] = ".*"
+        """
+        
+        groups[tgc["vars"][el]["groupname"]]["apply_to_hosts"] = tgc["vars"][el]["apply_to_hosts"]
 
     for el in tgc["membership"]: 
         try:
-            groups[el["groupname"]]
+            groups[tgc["membership"][el]["groupname"]]
         except:
-            groups[el["groupname"]] = dict()
+            groups[tgc["membership"][el]["groupname"]] = dict()
         
-        if el["childtype"] == "host":
+        if tgc["membership"][el]["childtype"] == "host":
             try:
-                groups[el["groupname"]]["hosts"]
+                groups[tgc["membership"][el]["groupname"]]["hosts"]
             except:
-                groups[el["groupname"]]["hosts"] = []
+                groups[tgc["membership"][el]["groupname"]]["hosts"] = []
             
-            groups[el["groupname"]]["hosts"].append(el["childname"])
-        elif el["childtype"] == "group":
+            groups[tgc["membership"][el]["groupname"]]["hosts"].append(tgc["membership"][el]["childname"])
+        elif tgc["membership"][el]["childtype"] == "group":
             try:
-                groups[el["groupname"]]["children"]
+                groups[tgc["membership"][el]["groupname"]]["children"]
             except:
-                groups[el["groupname"]]["children"] = []
-            groups[el["groupname"]]["children"].append(el["childname"])
-            
+                groups[tgc["membership"][el]["groupname"]]["children"] = []
+            groups[tgc["membership"][el]["groupname"]]["children"].append(tgc["membership"][el]["childname"])
+        
+        """    
         try:
-            el["apply_to_hosts"]
+            tgc["membership"][el]["apply_to_hosts"]
         except:
-            el["apply_to_hosts"] = ".*"
-
-        groups[el["groupname"]]["apply_to_hosts"] = el["apply_to_hosts"]
+            tgc["membership"][el]["apply_to_hosts"] = ".*"
+        """
+        
+        groups[tgc["membership"][el]["groupname"]]["apply_to_hosts"] = tgc["membership"][el]["apply_to_hosts"]
+        groups[tgc["membership"][el]["groupname"]]["include_hosts"] = tgc["membership"][el]["include_hosts"]
     inventoryd.logmessage(severity="debug", message="creating groupvars - end")
 
     inventoryd.logmessage(severity="debug", message="rendering groups - begin")

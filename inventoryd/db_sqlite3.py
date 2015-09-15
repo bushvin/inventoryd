@@ -281,12 +281,11 @@ class db_sqlite3():
         
         query = "SELECT * FROM `cache_vars` WHERE `history_id`='%d';" % history_id
         res = self.query(query)
-        #groupcache["vars"] = [ {'groupname':el["name"], 'fact':el["fact"], 'value':json.loads(el["value"]), 'priority': priority} for el in res ]
         groupcache["vars"] = dict( ( '%s::%s' %(el["name"], el["fact"]), {'groupname':el["name"], 'fact':el["fact"], 'value':json.loads(el["value"]), 'priority': priority}) for el in res )
         
         query = "SELECT * FROM `cache_groupmembership` WHERE `history_id`='%d';" % history_id
         res = self.query(query)
-        groupcache["membership"] = [ { 'groupname':el['name'], 'childname':el["childname"], 'childtype':el["childtype"], 'priority': priority } for el in res ]
+        groupcache["membership"] = dict( ( '%s::%s::%s' % (el["name"], el["childname"], el["childtype"]), { 'groupname':el['name'], 'childname':el["childname"], 'childtype':el["childtype"], 'priority': priority, 'apply_to_hosts': '.*', 'include_hosts': True }) for el in res)
             
         return groupcache
     
@@ -294,12 +293,12 @@ class db_sqlite3():
         groupcache = { 'vars':[], 'membership':[] }
         query = "SELECT * FROM `static_vars` WHERE `type`='groupvar';"
         res = self.query(query)
-        #groupcache["vars"] = [ {'groupname':el["name"], 'fact':el["fact"], 'value':json.loads(el["value"]), 'priority': int(el["priority"]) } for el in res ]
         groupcache["vars"] = dict( ( '%s::%s' %(el["name"], el["fact"]), {'groupname':el["name"], 'fact':el["fact"], 'value':json.loads(el["value"]), 'priority': int(el["priority"])}) for el in res )
 
         query = "SELECT * FROM `static_groupmembership`;"
         res = self.query(query)
-        groupcache["membership"] = [ { 'groupname':el['name'], 'childname':el["childname"], 'childtype':el["childtype"], 'priority': int(el["priority"]), 'apply_to_hosts':el["apply_to_hosts"] } for el in res ]
+        
+        groupcache["membership"] = dict( ( '%s::%s::%s' % (el["name"], el["childname"], el["childtype"]), { 'groupname':el['name'], 'childname':el["childname"], 'childtype':el["childtype"], 'priority': int(el["priority"]), 'apply_to_hosts': el["apply_to_hosts"], 'include_hosts': el["include_hosts"] }) for el in res)
         
         return groupcache
         
@@ -349,8 +348,8 @@ class db_sqlite3():
         groupcache = { 'vars':[], 'membership':[] }
         
         for c in connectors:
+            cache = self.getConnectorGroupCache(c["id"])
             if c["type"] == "groups":
-                cache = self.getConnectorGroupCache(c["id"])
                 for c_el in cache["vars"]:
                     index = "%s::%s" % (cache["vars"][c_el]["groupname"], cache["vars"][c_el]["fact"])
                     try:
@@ -362,19 +361,21 @@ class db_sqlite3():
                     groupcache[index]["fact"] = cache["vars"][c_el]["fact"]
                     groupcache[index]["value"] = cache["vars"][c_el]["value"]
                     groupcache[index]["priority"] = cache["vars"][c_el]["priority"]
-                    
-            
-            if c["type"] == "groups":
-                cache = self.getConnectorGroupCache(c["id"])
-                for c_el in cache["membership"]:
-                    item_found = False
-                    for h_el in groupcache["membership"]:
-                        if c_el["groupname"] == h_el["groupname"] and c_el["childname"] == h_el["childname"] and c_el["childtype"] == h_el["childtype"]:
-                             item_found = True
-                             break
-                    if item_found is False:
-                        groupcache["membership"].append(c_el)
 
+                for c_el in cache["membership"]:
+                    index = "%s::%s::%s" % (cache["vars"][c_el]["groupname"], cache["vars"][c_el]["childname"], cache["vars"][c_el]["childtype"])
+                    try:
+                        groupcache[index]
+                    except:
+                        groupcache[index] = dict()
+                    
+                    groupcache[index]["groupname"] = cache["vars"][c_el]["groupname"]
+                    groupcache[index]["childname"] = cache["vars"][c_el]["childname"]
+                    groupcache[index]["childtype"] = cache["vars"][c_el]["childtype"]
+                    groupcache[index]["priority"] = cache["vars"][c_el]["priority"]
+                    groupcache[index]["apply_to_hosts"] = cache["vars"][c_el]["apply_to_hosts"]
+                    groupcache[index]["include_hosts"] = cache["vars"][c_el]["include_hosts"]
+                    
         staticcache = self.getStaticGroupCache()
         for s_el in staticcache["vars"]:
             index = "%s::%s" % (staticcache["vars"][s_el]["groupname"], staticcache["vars"][s_el]["fact"])
@@ -395,14 +396,25 @@ class db_sqlite3():
                 groupcache[index]["priority"] = staticcache["vars"][s_el]["priority"]
 
         for s_el in staticcache["membership"]:
-            item_found = False
-            for g_el in groupcache["membership"]:
-                if s_el["groupname"] == g_el["groupname"] and s_el["childname"] == g_el["childname"] and s_el["childtype"] == g_el["childtype"]:
-                    item_found = True
-                    break
-            if item_found is False:
-                groupcache["membership"].append(s_el)
-        
+            index = "%s::%s::%s" % (cache["membership"][c_el]["groupname"], cache["membership"][c_el]["childname"], cache["membership"][c_el]["childtype"])
+            try:
+                groupcache[index]
+            except:
+                groupcache[index] = dict()
+            
+            try:
+                groupcache[index]["priority"]
+            except:
+                groupcache[index]["priority"] = 0
+            
+            if staticcache["membership"][s_el]["priority"] > hostscache[index]["priority"]:
+                groupcache[index]["groupname"] = cache["membership"][s_el]["groupname"]
+                groupcache[index]["childname"] = cache["membership"][s_el]["childname"]
+                groupcache[index]["childtype"] = cache["membership"][s_el]["childtype"]
+                groupcache[index]["priority"] = cache["membership"][s_el]["priority"]
+                groupcache[index]["apply_to_hosts"] = cache["membership"][s_el]["apply_to_hosts"]
+                groupcache[index]["include_hosts"] = cache["membership"][s_el]["include_hosts"]
+                
         return groupcache
     
     def getUserPassword(self, username):
