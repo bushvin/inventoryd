@@ -26,12 +26,7 @@ inventoryd is currently in development, and any feature may break at any given t
 
 ## howto
 ### installation
-1. Create the sqlite3 db for inventoryd: *~]$ sqlite3 test.db < sql/sqlite3.sql*
-2. Generate certificate and key for your ssl REST server: *~]$ sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout server.key -out server.crt*
-3. Include the inventoryd directory in your PYTHONPATH environment variable
-4. Create a config file based on the example
-5. Execute the script *~]$ ./inventoryd.py --config=/path/to/config/file*
-6. Browse to *http(s)://localhost:8080/inventory/list*
+Please check the Wiki
 
 ### connectors
 Familiarize yourself with the database first
