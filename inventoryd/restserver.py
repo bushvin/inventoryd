@@ -78,6 +78,8 @@ def showInventory(user = None, payload = None, handler = None):
 
     inventoryd.logmessage(severity="debug", message="rendering groups - begin")
     groups_rendered = dict()
+
+    
     for groupname in groups:
         try:
             groups[groupname]["hosts"]
@@ -127,7 +129,7 @@ def showInventory(user = None, payload = None, handler = None):
             
             if groups[groupname]["include_hosts"] == 1 :
                 groups_rendered[newgroupname]["hosts"].append(hostname)
-                
+    
                         
     inventoryd.logmessage(severity="debug", message="rendering groups - end")
             
