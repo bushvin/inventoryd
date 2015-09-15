@@ -14,7 +14,7 @@ class connector(object):
     _schema = dict()
     _args = [ {'name':'prefix', 'mandatory':False, 'default':'' },
               {'name':'schema', 'mandatory':True, 'default':None } ]
-    _defaultItemSchema = { 'datatype':'string', 'index':-1, 'name':'', 'default': '', 'exclude': False }
+    _defaultItemSchema = { 'datatype':'string', 'index':-1, 'name':'', 'default': '', 'exclude': False, 'lookup': dict() }
     connector_name = ''
     rc = 0
     message = ""
@@ -74,7 +74,24 @@ class connector(object):
                 value = itemschema["default"]
             else:
                 value = bool(value)
-            
+        elif itemschema["datatype"] == 'float':
+            try:
+                float(value)
+            except:
+                value = itemschema["default"]
+            else:
+                value = float(value)
+        elif itemschema["datatype"] == 'lookup':
+            found = None
+            for el in itemschema["lookup"]:
+                if re.match("^%s$" % el, value) is not None:
+                    found = itemschema["lookup"][el]
+                    break
+            if found is not None:
+                value = found
+            else:
+                value = itemschema["default"]
+        
         return value
     
     def excludeFact(self, fact_index):
