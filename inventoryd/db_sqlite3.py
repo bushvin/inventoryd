@@ -27,21 +27,32 @@ class db_sqlite3():
     
     def __init__(self, conf):
         self.db_location = conf['db_location']
-        self.connect()
+        #self.connect()
     
     def connect(self):
         if os.path.isfile(self.db_location) is not True:
             inventoryd.logmessage(severity="crit", message="The database sould not be found")
-            sys.exit(1)
-        self.connection = sqlite3.connect(self.db_location)
-        self.connection.row_factory = sqlite3.Row
-        self.cursor = self.connection.cursor()
+            return False
+        else:
+            self.connection = sqlite3.connect(self.db_location)
+            self.connection.row_factory = sqlite3.Row
+            self.cursor = self.connection.cursor()
+            return True
     
     def disconnect(self):
-        self.connection.close()
+        try:
+            self.connection.close()
+        except sqlite3.Error as e:
+            inventoryd.logmessage(severity="crit", message="Could not disconnect from database: %s" % e.args[0])
+            return False
+        except:
+            inventoryd.logmessage(severity="crit", message="Could not disconnect from database: Unknown error")
+            return False
+        else:
+            return True
+        
         
     def query(self, query):
-        inventoryd.logmessage(severity="DEBUG", message="Execute query %s" % query)
         try:
             self.cursor.execute(query)
         except:
@@ -50,19 +61,18 @@ class db_sqlite3():
             
         ret = []
         for row in self.cursor.execute(query):
-            newrow = {}
-            for key in row.keys():
-                newrow[key] = row[key]
-            ret.append(newrow)
+            ret.append(dict(zip(row.keys(), row)))
+        self.result_count = len(ret)
         return ret
     
     def commit(self, query):
-        inventoryd.logmessage(severity="DEBUG", message="Committing query %s" % query)
+        
         try:
             self.cursor.execute(query)
         except sqlite3.Error as e:
             inventoryd.logmessage(severity="error", message="A sqlite3 error occurred: %s" % e.args[0])
             inventoryd.logmessage(severity="error", message="An error occurred comitting the following query: %s" % query)
+            return False
         except:
             inventoryd.logmessage(severity="error", message="An error occurred comitting the following query: %s" % query)
             return False
@@ -78,7 +88,6 @@ class db_sqlite3():
         query = "SELECT * FROM `sync_connector` WHERE `id`='%d';" % int(connector_id)
         res = self.query(query)
         if len(res) == 1:
-            res[0]["parameters"] = json.loads(res[0]["parameters"])
             return res[0]
         else:
             return None
@@ -90,8 +99,6 @@ class db_sqlite3():
             qfilter = ""
         query = "SELECT * FROM `sync_connector` %s ORDER BY `type`,`priority`;" % qfilter
         res = self.query(query)
-        for row in res:
-            row["parameters"] = json.loads(row["parameters"])
         return res
 
     def getUsers(self, enabled = True):
@@ -162,8 +169,10 @@ class db_sqlite3():
         else:
             active = 0
         query = "UPDATE `sync_history` SET `datetime_end`='%s', `active`=%d, `resultcode`=%d, `message`='%s' WHERE `id`='%d';" % (timestamp, active, rc, msg,history_id)
-        self.commit(query)
-        return True
+        if self.commit(query) is not None:
+            return True
+        else:
+            return False
 
     def commitHostsCache(self, history_id, facts):
         count = 0
@@ -174,11 +183,13 @@ class db_sqlite3():
                 query = "%s UNION SELECT '%d', '%s','hostvar','%s','%s'" %(query, history_id, self.sanitize(el["hostname"]), self.sanitize(el["fact"]), self.sanitize(json.dumps(el["value"])))
             count = count + 1
             if count == 500:
-                self.commit(query)
+                if self.commit(query) is None:
+                    return False
                 count = 0
         
         if count > 0:
-            self.commit(query)
+            if self.commit(query) is None:
+                return False
 
         return True
     
@@ -191,11 +202,13 @@ class db_sqlite3():
                 query = "%s UNION SELECT '%d', '%s','groupvar','%s','%s'" %(query, history_id, self.sanitize(el["groupname"]), self.sanitize(el["fact"]), self.sanitize(json.dumps(el["value"])))
             count = count + 1
             if count == 500:
-                self.commit(query)
+                if self.commit(query) is None:
+                    return False
                 count = 0
         
         if count > 0:
-            self.commit(query)
+            if self.commit(query) is None:
+                return False
 
         count = 0
         for el in facts:
@@ -205,11 +218,13 @@ class db_sqlite3():
                 query = "%s UNION SELECT '%d', '%s','%s','host'" %(query, history_id, self.sanitize(el["groupname"]), self.sanitize(el["host"]))
             count = count + 1
             if count == 500:
-                self.commit(query)
+                if self.commit(query) is None:
+                    return False
                 count = 0
         
         if count > 0:
-            self.commit(query)
+            if self.commit(query) is None:
+                return False
 
 
         count = 0
@@ -220,11 +235,13 @@ class db_sqlite3():
                 query = "%s UNION SELECT '%d', '%s','%s','group'" %(query, history_id, self.sanitize(el["groupname"]), self.sanitize(el["child"]))
             count = count + 1
             if count == 500:
-                self.commit(query)
+                if self.commit(query) is None:
+                    return False
                 count = 0
         
         if count > 0:
-            self.commit(query)
+            if self.commit(query) is None:
+                return False
 
         return True
 
@@ -236,31 +253,38 @@ class db_sqlite3():
             del_ids = list()
             query = "SELECT `id` FROM `sync_history` WHERE `connector_id`='%s' ORDER BY `id`;" % conn["id"]
             res = self.query(query)
-            if res is not None:
-                all_ids = [ str(el["id"]) for el in res ]
-                del_ids = all_ids[keep_history:]
+            if res is None:
+                return False
+            
+            all_ids = [ str(el["id"]) for el in res ]
+            del_ids = all_ids[keep_history:]
                 
             if len(del_ids) > 0:
                 query = "DELETE FROM `cache_vars` WHERE `history_id` IN (%s);" % ",".join(del_ids)
                 changes = self.connection.total_changes
-                self.commit(query)
+                if self.commit(query) is None:
+                    return False
                 changes = self.connection.total_changes - changes
                 if changes > 0:
                     inventoryd.logmessage(severity="info", message="%s - %d records deleted from vars cache" % (conn["name"], changes))
                 
                 query = "DELETE FROM `cache_groupmembership` WHERE `history_id` IN (%s);" % ",".join(del_ids)
                 changes = self.connection.total_changes
-                self.commit(query)
+                if self.commit(query) is None:
+                    return False
                 changes = self.connection.total_changes - changes
                 if changes > 0:
                     inventoryd.logmessage(severity="info", message="%s - %d records deleted from group membership cache" % (conn["name"], changes))
                 
                 query = "DELETE FROM `sync_history` WHERE `id` IN (%s);" % ",".join(del_ids)
                 changes = self.connection.total_changes
-                self.commit(query)
+                if self.commit(query) is None:
+                    return False
                 changes = self.connection.total_changes - changes
                 if changes > 0:
                     inventoryd.logmessage(severity="info", message="%s - %d records deleted from history log" % (conn["name"],changes))
+            
+            return True
     
     def getConnectorHostCache(self, connector_id, timestamp = None):
         hostcache = { 'vars':[] }
@@ -270,11 +294,14 @@ class db_sqlite3():
             history_id = int(res[0]["id"])
             priority = int(res[0]["priority"])
         else:
-            history_id = -1
-            priority = -1
+            return False
+            #history_id = -1
+            #priority = -1
             
         query = "SELECT * FROM `cache_vars` WHERE `history_id`='%d';" % history_id
         res = self.query(query)
+        if res is None:
+            return False
         hostcache["vars"] = dict( ( '%s::%s' %(el["name"], el["fact"]), {'hostname':el["name"], 'fact':el["fact"], 'value':json.loads(el["value"]), 'priority': priority}) for el in res )
 
         return hostcache
@@ -283,6 +310,8 @@ class db_sqlite3():
         hostcache = { 'vars':[] }
         query = "SELECT * FROM `static_vars` WHERE `type`='hostvar';"
         res = self.query(query)
+        if res is None:
+            return False
         hostcache["vars"] = dict( ( '%s::%s' %(el["name"], el["fact"]), {'hostname':el["name"], 'fact':el["fact"], 'value':json.loads(el["value"]), 'priority': int(el["priority"])}) for el in res )
         return hostcache
         
@@ -294,15 +323,20 @@ class db_sqlite3():
             history_id = int(res[0]["id"])
             priority = int(res[0]["priority"])
         else:
-            history_id = -1
-            priority = -1
+            return False
+            #history_id = -1
+            #priority = -1
         
         query = "SELECT * FROM `cache_vars` WHERE `history_id`='%d';" % history_id
         res = self.query(query)
+        if res is None:
+            return False
         groupcache["vars"] = dict( ( '%s::%s' %(el["name"], el["fact"]), {'groupname':el["name"], 'fact':el["fact"], 'value':json.loads(el["value"]), 'priority': priority}) for el in res )
         
         query = "SELECT * FROM `cache_groupmembership` WHERE `history_id`='%d';" % history_id
         res = self.query(query)
+        if res is None:
+            return False
         groupcache["membership"] = dict( ( '%s::%s::%s' % (el["name"], el["childname"], el["childtype"]), { 'groupname':el['name'], 'childname':el["childname"], 'childtype':el["childtype"], 'priority': priority, 'apply_to_hosts': '.*', 'include_hosts': True }) for el in res)
             
         return groupcache
@@ -319,130 +353,13 @@ class db_sqlite3():
         groupcache["membership"] = dict( ( '%s::%s::%s' % (el["name"], el["childname"], el["childtype"]), { 'groupname':el['name'], 'childname':el["childname"], 'childtype':el["childtype"], 'priority': int(el["priority"]), 'apply_to_hosts': el["apply_to_hosts"], 'include_hosts': el["include_hosts"] }) for el in res)
         
         return groupcache
-        
-    def getHostCache(self):
-        connectors = sorted(self.getConnectors(True), key=lambda k: k["priority"])
-        
-        hostscache = { "vars": dict() }
-        for c in connectors:
-            if c["type"] == "hosts":
-                cache = self.getConnectorHostCache(c["id"])
-                for c_el in cache["vars"]:
-                    index = "%s::%s" % (cache["vars"][c_el]["hostname"], cache["vars"][c_el]["fact"])
-                    try:
-                        hostscache["vars"][index]
-                    except:
-                        hostscache["vars"][index] = dict()
-                    
-                    hostscache["vars"][index]["hostname"] = cache["vars"][c_el]["hostname"]
-                    hostscache["vars"][index]["fact"] = cache["vars"][c_el]["fact"]
-                    hostscache["vars"][index]["value"] = cache["vars"][c_el]["value"]
-                    hostscache["vars"][index]["priority"] = cache["vars"][c_el]["priority"]
-
-        staticcache = self.getStaticHostCache()
-        for s_el in staticcache["vars"]:
-            index = "%s::%s" % (staticcache["vars"][s_el]["hostname"], staticcache["vars"][s_el]["fact"])
-            try:
-                hostscache[index]
-            except:
-                hostscache[index] = dict()
-            
-            try:
-                hostscache[index]["priority"]
-            except:
-                hostscache[index]["priority"] = 0
-            
-            if staticcache["vars"][s_el]["priority"] > hostscache["vars"][index]["priority"]:
-                hostscache["vars"][index]["hostname"] = staticcache["vars"][s_el]["hostname"]
-                hostscache["vars"][index]["fact"] = staticcache["vars"][s_el]["fact"]
-                hostscache["vars"][index]["value"] = staticcache["vars"][s_el]["value"]
-                hostscache["vars"][index]["priority"] = staticcache["vars"][s_el]["priority"]
-            
-        return hostscache
-    
-    def getGroupCache(self):
-        connectors = sorted(self.getConnectors(True), key=lambda k: k["priority"])
-        
-        groupcache = { 'vars': dict(), 'membership':dict() }
-        
-        for c in connectors:
-            cache = self.getConnectorGroupCache(c["id"])
-            if c["type"] == "groups":
-                for c_el in cache["vars"]:
-                    index = "%s::%s" % (cache["vars"][c_el]["groupname"], cache["vars"][c_el]["fact"])
-                    try:
-                        groupcache["membership"][index]
-                    except:
-                        groupcache["membership"][index] = dict()
-                    
-                    groupcache["vars"][index]["groupname"] = cache["vars"][c_el]["groupname"]
-                    groupcache["vars"][index]["fact"] = cache["vars"][c_el]["fact"]
-                    groupcache["vars"][index]["value"] = cache["vars"][c_el]["value"]
-                    groupcache["vars"][index]["priority"] = cache["vars"][c_el]["priority"]
-
-                for c_el in cache["membership"]:
-                    index = "%s::%s::%s" % (cache["membership"][c_el]["groupname"], cache["membership"][c_el]["childname"], cache["membership"][c_el]["childtype"])
-                    try:
-                        groupcache["membership"][index]
-                    except:
-                        groupcache["membership"][index] = dict()
-                    
-                    groupcache["membership"][index]["groupname"] = cache["membership"][c_el]["groupname"]
-                    groupcache["membership"][index]["childname"] = cache["membership"][c_el]["childname"]
-                    groupcache["membership"][index]["childtype"] = cache["membership"][c_el]["childtype"]
-                    groupcache["membership"][index]["priority"] = cache["membership"][c_el]["priority"]
-                    groupcache["membership"][index]["apply_to_hosts"] = cache["membership"][c_el]["apply_to_hosts"]
-                    groupcache["membership"][index]["include_hosts"] = cache["membership"][c_el]["include_hosts"]
-                    
-        staticcache = self.getStaticGroupCache()
-        for s_el in staticcache["vars"]:
-            index = "%s::%s" % (staticcache["vars"][s_el]["groupname"], staticcache["vars"][s_el]["fact"])
-            try:
-                groupcache["vars"][index]
-            except:
-                groupcache["vars"][index] = dict()
-            
-            try:
-                groupcache["vars"][index]["priority"]
-            except:
-                groupcache["vars"][index]["priority"] = 0
-            
-            if staticcache["vars"][s_el]["priority"] > groupcache["vars"][index]["priority"]:
-                groupcache["vars"][index]["groupname"] = staticcache["vars"][s_el]["groupname"]
-                groupcache["vars"][index]["fact"] = staticcache["vars"][s_el]["fact"]
-                groupcache["vars"][index]["value"] = staticcache["vars"][s_el]["value"]
-                groupcache["vars"][index]["priority"] = staticcache["vars"][s_el]["priority"]
-        
-        print cache["membership"]
-        for s_el in staticcache["membership"]:
-            index = "%s::%s::%s" % (staticcache["membership"][s_el]["groupname"], staticcache["membership"][s_el]["childname"], staticcache["membership"][s_el]["childtype"])
-            try:
-                groupcache["membership"][index]
-            except:
-                groupcache["membership"][index] = dict()
-            
-            try:
-                groupcache["membership"][index]["priority"]
-            except:
-                groupcache["membership"][index]["priority"] = 0
-            
-            if staticcache["membership"][s_el]["priority"] > groupcache["membership"][index]["priority"]:
-                groupcache["membership"][index]["groupname"] = staticcache["membership"][s_el]["groupname"]
-                groupcache["membership"][index]["childname"] = staticcache["membership"][s_el]["childname"]
-                groupcache["membership"][index]["childtype"] = staticcache["membership"][s_el]["childtype"]
-                groupcache["membership"][index]["priority"] = staticcache["membership"][s_el]["priority"]
-                groupcache["membership"][index]["apply_to_hosts"] = staticcache["membership"][s_el]["apply_to_hosts"]
-                groupcache["membership"][index]["include_hosts"] = staticcache["membership"][s_el]["include_hosts"]
-                
-        return groupcache
     
     def getUserPassword(self, username):
         query = "SELECT `passhash` FROM `user` WHERE `name`='%s' LIMIT 0,1;" % username
         res = self.query(query)
-        if len(res) == 1:
-            return res[0]["passhash"].split(':')
-        else:
-            return '', ''
+        if res is None:
+            return False
+        return res[0]["passhash"].split(':')
     
     def getUserACL(self, username):
         query = "SELECT `b`.`object`,`b`.`ace_list`,`b`.`ace_read`,`b`.`ace_create`,`b`.`ace_modify`,`b`.`ace_delete` FROM `role_member` `a` LEFT JOIN `acl` `b` ON (`a`.`role_name`=`b`.`role_name`) WHERE `a`.`user_name`='%s'; " % username
@@ -452,12 +369,15 @@ class db_sqlite3():
     def createConnector(self, name, connector, connector_type, parameters, priority):
         query = "SELECT MAX(`id`) `connector_id` FROM `sync_connector`;"
         res = self.query(query)
-        if res is not None and len(res) == 1 and res[0]["connector_id"] is not None:
+        if res is None:
+            return False
+        elif len(res) == 1 and res[0]["connector_id"] is not None:
             connector_id = int(res[0]["connector_id"])
         else:
             connector_id = 1
         query = "INSERT INTO `sync_connector` (`id`) VALUES('%d');" % int(connector_id)
-        self.commit(query)
+        if self.commit(query) is None:
+            return False
         
         return True
         
@@ -495,7 +415,9 @@ class db_sqlite3():
     def readConnector(self, connector_id):
         query = "SELECT * FROM `sync_connector` WHERE `id`=%d LIMIT 0,1;" % int(connector_id)
         res = self.query(query)
-        if len(res) == 1:
+        if res is None:
+            return False
+        elif len(res) == 1:
             return res[0]
         else:
             return dict()
@@ -503,11 +425,21 @@ class db_sqlite3():
     def getHosts(self):
         res = []
         query = "SELECT * FROM `sync_connector` WHERE `enabled`=1;"
-        for conn in self.query(query):
+        connections = self.query(query)
+        if connections is None:
+            return False
+        
+        for conn in connections:
             query = "SELECT * FROM `sync_history` WHERE `connector_id`=%d AND `active`=1 ORDER BY `datetime_end` DESC LIMIT 0,1;" % int(conn["id"])
-            for hist in self.query(query):
+            history = self.query(query)
+            if history is None:
+                return False
+            for hist in history:
                 query = "SELECT `name` FROM `cache_vars` WHERE `history_id`=%d GROUP BY `name` ORDER BY `name`;" % int(hist["id"])
-                for hostname in self.query(query):
+                hostlist = self.query(query)
+                if hostlist is None:
+                    return False
+                for hostname in hostlist:
                     host_found = False
                     for el in res:
                         if el["hostname"] == hostname["name"]:
@@ -517,7 +449,10 @@ class db_sqlite3():
                         res.append({'hostname':hostname["name"], 'id':hostname["name"]})
                 
         query = "SELECT `name` FROM `static_vars` WHERE `type`='hostvar' GROUP BY `name` ORDER BY `name`;"
-        for row in self.query(query):
+        varlist = self.query(query)
+        if varlist is None:
+            return False
+        for row in varlist:
             for el in res:
                 if el["hostname"] == row["name"]:
                     host_found = True
@@ -529,11 +464,20 @@ class db_sqlite3():
     def readHost(self, host_id = None):
         res = dict()
         query = "SELECT * FROM `sync_connector` WHERE `enabled`=1;"
-        for conn in self.query(query):
+        connections = self.query(query)
+        if connections is None:
+            return False
+        for conn in connections:
             query = "SELECT * FROM `sync_history` WHERE `connector_id`=%d AND `active`=1 ORDER BY `datetime_end` DESC LIMIT 0,1;" % int(conn["id"])
-            for hist in self.query(query):
+            history = self.query(query)
+            if history is None:
+                return False
+            for hist in history:
                 query = "SELECT * FROM `cache_vars` WHERE `name`='%s' AND `type`='hostvar' AND `history_id`='%d' ORDER BY `fact`;" % (host_id, int(hist["id"]))
-                for el in self.query(query):
+                varlist = self.query(query)
+                if varlist is None:
+                    return False
+                for el in varlist:
                     try:
                         res[el["fact"]]
                     except:
@@ -541,7 +485,10 @@ class db_sqlite3():
                     
                     res[el["fact"]].append({'value':json.loads(el["value"]), 'priority':conn["priority"], 'source':'connector', 'connector_id':conn["id"]})
         query = "SELECT * FROM `static_vars` WHERE `name`='%s' AND `type`='hostvar' ORDER BY `fact`;" % host_id
-        for el in self.query(query):
+        varlist = self.query(query)
+        if varlist is None:
+            return False
+        for el in varlist:
             try:
                 res[el["fact"]]
             except:
@@ -565,7 +512,8 @@ class db_sqlite3():
          
         if len(query_filter) > 0:
             query = "UPDATE `static_vars` SET %s WHERE `type`='hostvar' AND `name`='%s' AND `fact`='%s';" % ( ", ".join(query_filter), hostname, fact)
-            self.commit(query)
+            if self.commit(query) is None:
+                return False
         
         return True
     def deleteStaticHostvar(self, hostname = None, fact = None):
