@@ -131,9 +131,9 @@ class daemon:
                         cachefiles = list()
                         for el in os.listdir(self._cli.cachefilepath):
                             if re.match("^[0-9]+.json", el) is not None:
-                                cachefile.append(el)
-                        cachefile.sort()
-                        cachefile = cachefile[:self._cfg["housekeeper"]["inventory_history"]-1]
+                                cachefiles.append(el)
+                        cachefiles.sort()
+                        cachefiles = cachefiles[:self._cfg["housekeeper"]["inventory_history"]-1]
                         for el in cachefile:
                             inventoryd.logmessage(severity="info", message="Removing old cache file %s" % el)
                             os.unlink("%s/%s" % (self._cli.cachefilepath, el))

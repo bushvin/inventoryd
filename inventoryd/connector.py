@@ -23,6 +23,7 @@ from io import BytesIO
 import inventoryd
 import datetime
 import copy
+import json
 
 class connector(object):
     _hosts = dict()
@@ -32,7 +33,7 @@ class connector(object):
     _schema = dict()
     _args = [ {'name':'prefix', 'mandatory':False, 'default':'' },
               {'name':'schema', 'mandatory':True, 'default':None } ]
-    _defaultItemSchema = { 'datatype':'string', 'index':-1, 'name':'', 'default': '', 'exclude': False, 'lookup': dict() }
+    _defaultItemSchema = { 'datatype':'string', 'index':-1, 'name':'', 'default': '', 'exclude': False, 'lookup': None }
     connector_name = ''
     rc = 0
     message = ""
@@ -99,7 +100,15 @@ class connector(object):
                 value = itemschema["default"]
             else:
                 value = float(value)
-        elif itemschema["datatype"] == 'lookup':
+        elif itemschema["datatype"] == 'json':
+            try:
+                json.loads(value)
+            except:
+                value = dict()
+            else:
+                value = json.loads(value)
+        
+        if isinstance(itemschema["lookup"], dict) is True:
             found = None
             for el in itemschema["lookup"]:
                 if re.match("^%s$" % el, value) is not None:
@@ -109,7 +118,7 @@ class connector(object):
                 value = found
             else:
                 value = itemschema["default"]
-        
+            
         return value
     
     def excludeFact(self, fact_index):
