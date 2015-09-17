@@ -24,4 +24,4 @@ inventoryd is currently in development, and any feature may break at any given t
 + Create a systemd unit file
 + Provide a cli to the REST API
 
-For more information about installing and configuring inventoryd, please check the [Wiki](/bushvin/inventoryd/wiki)
+For more information about installing and configuring inventoryd, please check the [Wiki](https://github.com/bushvin/inventoryd/wiki)
