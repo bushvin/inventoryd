@@ -15,11 +15,11 @@ inventoryd is currently in development, and any feature may break at any given t
 + Automatic cache housekeeping
 + Various backends to store the inventory cache (currently only supports sqlite3)
 + Create a System V init script
++ Static inventory entries, with support for Jinja2 templating on groups
 
 ## to do
 + REST management interface (over both http and https)
 + Various backends to store the inventory cache (postgresql, mariadb)
-+ Static inventory entries, with support for Jinja2 templating
 + Connectors to many different (dynamic) data sources (postgresql, mariadb, odbc)
 + Create a systemd unit file
 + Provide a cli to the REST API
