@@ -1,6 +1,6 @@
 *.pyc
+*.pid
 server.crt
 server.key
 inventoryd.db
 var/
-*.pid
