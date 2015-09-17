@@ -133,10 +133,15 @@ class daemon:
                             if re.match("^[0-9]+.json", el) is not None:
                                 cachefiles.append(el)
                         cachefiles.sort()
-                        cachefiles = cachefiles[:self._cfg["housekeeper"]["inventory_history"]-1]
-                        for el in cachefile:
+                        cachefiles = cachefiles[:0-self._cfg["housekeeper"]["inventory_history"]]
+                        for el in cachefiles:
                             inventoryd.logmessage(severity="info", message="Removing old cache file %s" % el)
-                            os.unlink("%s/%s" % (self._cli.cachefilepath, el))
+                            try:
+                                os.unlink("%s/%s" % (self._cli.cachefilepath, el))
+                            except OSError as e:
+                                inventoryd.logmessage(severity="error", message="An error ocurred removing %s: %s" % (el, e))
+                            except:
+                                inventoryd.logmessage(severity="error", message="An error ocurred removing %s" % el)
                     inventoryd.logmessage(severity="info", message="Ending Housekeeping run")
                     self._housekeeper_lock = False
                 else:
@@ -187,7 +192,7 @@ class daemon:
                 if cc.rc == 0:
                     inventoryd.logmessage(severity="info", message="%s - synchronizing %d hostvar facts for %d hosts" % (connector["name"], len(facts), int(cc.getHostCount())))
                     db.commitHostsCache(hid,facts)
-                    inventoryd.logmessage(severity="info", message="%s - %d hostvar facts synchronized" % (connector["name"], len(facts)))
+                    inventoryd.logmessage(severity="debug", message="%s - %d hostvar facts synchronized" % (connector["name"], len(facts)))
                 else:
                     inventoryd.logmessage(severity="error", message="%s - An error occurred synchronizing hostvars. RC:%d" % (connector["name"],cc.rc))
                     inventoryd.logmessage(severity="error", message="%s - %s" % (connector["name"],cc.message))
@@ -198,9 +203,9 @@ class daemon:
                     inventoryd.logmessage(severity="info", message="%s - synchronizing %d group host memberships" % (connector["name"], len(hosts)))
                     inventoryd.logmessage(severity="info", message="%s - synchronizing %d group group memberships" % (connector["name"], len(children)))
                     db.commitGroupsCache(hid,facts, hosts, children)
-                    inventoryd.logmessage(severity="info", message="%s - %d groupvar facts synchronized" % (connector["name"], len(facts)))
-                    inventoryd.logmessage(severity="info", message="%s - %d group host memberships synchronized" % (connector["name"], len(hosts)))
-                    inventoryd.logmessage(severity="info", message="%s - %d group group memberships synchronized" % (connector["name"], len(children)))
+                    inventoryd.logmessage(severity="debug", message="%s - %d groupvar facts synchronized" % (connector["name"], len(facts)))
+                    inventoryd.logmessage(severity="debug", message="%s - %d group host memberships synchronized" % (connector["name"], len(hosts)))
+                    inventoryd.logmessage(severity="debug", message="%s - %d group group memberships synchronized" % (connector["name"], len(children)))
                 else:
                     inventoryd.logmessage(severity="error", message="%s - An error occurred synchronizing groups. RC:%d" % (connector["name"], cc.rc))
                     inventoryd.logmessage(severity="error", message="%s - %s" % (connector["name"], cc.message))

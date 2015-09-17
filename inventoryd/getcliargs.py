@@ -17,7 +17,6 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA.
 
 from optparse import OptionParser
-#from optparse import OptionGroup
 import os
 
 def getcliargs():
@@ -31,10 +30,17 @@ def getcliargs():
     
     if options.configpath is not None and os.path.isfile(options.configpath) is True:
         options.configpath = os.path.abspath(options.configpath)
+    elif os.path.isfile(options.configpath) is False:
+        parser.error("The configuration file path specified (%s) is invalid." % options.configpath
     
     if os.path.isdir(os.path.dirname(options.pidfilepath)) is True:
         options.pidfilepath = os.path.abspath(options.pidfilepath)
+    else:
+        parser.error("The pid file path specified (%s) is invalid." % options.pidfilepath
     
     if os.path.isdir(options.cachefilepath) is True:
         options.cachefilepath = os.path.abspath(options.cachefilepath)
+    else:
+        parser.error("The cache file path (%s) doesn't exist." % options.cachefilepath
+    
     return options
