@@ -320,10 +320,6 @@ class db():
                 
         return groupcache
 
-        """
-        return self._dbo.getGroupCache()
-        """
-
     def getUserPassword(self, username):
         inventoryd.logmessage(severity="DEBUG", message="Get user passhash for %s" % username)
         res = self._dbo.getUserPassword(username)

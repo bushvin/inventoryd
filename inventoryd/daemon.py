@@ -134,6 +134,7 @@ class daemon:
                                 cachefiles.append(el)
                         cachefiles.sort()
                         cachefiles = cachefiles[:0-self._cfg["housekeeper"]["inventory_history"]]
+                        inventoryd.logmessage(severity="info", message="Removing %d old cache files" % len(cachefiles))
                         for el in cachefiles:
                             inventoryd.logmessage(severity="info", message="Removing old cache file %s" % el)
                             try:

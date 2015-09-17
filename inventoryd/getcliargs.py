@@ -18,6 +18,7 @@
 
 from optparse import OptionParser
 import os
+import inventoryd
 
 def getcliargs():
     parser = OptionParser()
@@ -32,15 +33,18 @@ def getcliargs():
         options.configpath = os.path.abspath(options.configpath)
     elif os.path.isfile(options.configpath) is False:
         parser.error("The configuration file path specified (%s) is invalid." % options.configpath
+    inventoryd.logmessage(severity="debug", message="Config path is set to %s" % options.configpath)
     
     if os.path.isdir(os.path.dirname(options.pidfilepath)) is True:
         options.pidfilepath = os.path.abspath(options.pidfilepath)
     else:
         parser.error("The pid file path specified (%s) is invalid." % options.pidfilepath
+    inventoryd.logmessage(severity="debug", message="pid path is set to %s" % options.pidfilepath)
     
     if os.path.isdir(options.cachefilepath) is True:
         options.cachefilepath = os.path.abspath(options.cachefilepath)
     else:
         parser.error("The cache file path (%s) doesn't exist." % options.cachefilepath
+    inventoryd.logmessage(severity="debug", message="cache file path is set to %s" % options.cachefilepath)
     
     return options
