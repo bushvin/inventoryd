@@ -23,6 +23,8 @@ import os
 import sys
 import datetime
 from threading import Thread
+import json
+import re
 
 class daemon:
     _cfg = None
@@ -123,7 +125,18 @@ class daemon:
                 if self._housekeeper_lock is False:
                     self._housekeeper_lock = True
                     inventoryd.logmessage(severity="info", message="Starting Housekeeping run")
-                    db.deleteHistory(self._cfg["housekeeper"]["history"])
+                    if self._cfg["housekeeper"]["history"] > 0:
+                        db.deleteHistory(self._cfg["housekeeper"]["history"])
+                    if self._cfg["housekeeper"]["inventory_history"] > 0:
+                        cachefiles = list()
+                        for el in os.listdir(self._cli.cachefilepath):
+                            if re.match("^[0-9]+.json", el) is not None:
+                                cachefile.append(el)
+                        cachefile.sort()
+                        cachefile = cachefile[:self._cfg["housekeeper"]["inventory_history"]-1]
+                        for el in cachefile:
+                            inventoryd.logmessage(severity="info", message="Removing old cache file %s" % el)
+                            os.unlink("%s/%s" % (self._cli.cachefilepath, el))
                     inventoryd.logmessage(severity="info", message="Ending Housekeeping run")
                     self._housekeeper_lock = False
                 else:
@@ -198,7 +211,28 @@ class daemon:
             inventoryd.logmessage(severity="info", message="Could not start %s sync" % connector["name"])
         
         db.disconnect()
-
+        
+        self._createInventoryCacheFile()
+        
+    def _createInventoryCacheFile(self):
+        inventoryd.logmessage(severity="info", message="Create Inventory cache file")
+        inventoryd.logmessage(severity="info", message="Generating Ansible Inventory")
+        db = inventoryd.db(self._cfg["db"])
+        res = db.getAnsibleInventory()
+        db.disconnect()
+        timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S%f")
+        filename = "%s/%s.json" % (self._cli.cachefilepath, timestamp)
+        inventoryd.logmessage(severity="info", message="Creating cache file %s" % filename)
+        with open(filename, "w") as f:
+            f.write(json.dumps(res, sort_keys=True, indent=4, separators=(',',': ')))
+        
+        inventoryd.logmessage(severity="info", message="Creating link to %s" % filename)
+        if os.path.isfile("%s/latest.json" % self._cli.cachefilepath) is True:
+            os.unlink("%s/latest.json" % self._cli.cachefilepath)
+        os.symlink(filename,"%s/latest.json" % self._cli.cachefilepath)
+        
+        inventoryd.logmessage(severity="info", message="Done generating Ansible Inventory")
+        
     def _startRESTserver(self):
         inventoryd.logmessage(severity="info", message="Starting the REST server")
         self._startHTTPRESTserver()

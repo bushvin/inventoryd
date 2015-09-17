@@ -46,7 +46,8 @@ def getconfig(configpath):
                     'log_level': 'debug' },
                'housekeeper': {
                     'schedule':'@hourly',
-                    'history': 24 },
+                    'history': 24,
+                    'inventory_history': 10 },
                'rest_server': {
                     'listen': '0.0.0.0',
                     'http_port': 8080,
@@ -67,6 +68,7 @@ def getconfig(configpath):
             newini[section][option] = ini[section][option]
 
     newini["housekeeper"]["history"] = int(newini["housekeeper"]["history"])
+    newini["housekeeper"]["inventory_history"] = int(newini["housekeeper"]["inventory_history"])
     newini["rest_server"]["http_port"] = int(newini["rest_server"]["http_port"])
     newini["rest_server"]["https_port"] = int(newini["rest_server"]["https_port"])
     newini["inventory"]["create_all"] = bool(newini["inventory"]["create_all"])

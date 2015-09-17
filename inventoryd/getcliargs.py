@@ -18,14 +18,23 @@
 
 from optparse import OptionParser
 #from optparse import OptionGroup
+import os
 
 def getcliargs():
     parser = OptionParser()
     
     parser.add_option("-C", "--config", help="Path to the config file", dest="configpath", action="store", type="string", default=None)
     parser.add_option("-P", "--pidfile", help="Path to the pid file", dest="pidfilepath", action="store", type="string", default="/var/run/inventoryd.pid")
-    parser.add_option("-R", "--vardir", help="Path where inventoryd stores cache files", dest="varfilepath", action="store", type="string", default="/var/lib/inventoryd")
+    parser.add_option("-R", "--cachedir", help="Path where inventoryd stores cache files", dest="cachefilepath", action="store", type="string", default="/var/cache/inventoryd")
     
     (options, args) = parser.parse_args()
     
+    if options.configpath is not None and os.path.isfile(options.configpath) is True:
+        options.configpath = os.path.abspath(options.configpath)
+    
+    if os.path.isdir(os.path.dirname(options.pidfilepath)) is True:
+        options.pidfilepath = os.path.abspath(options.pidfilepath)
+    
+    if os.path.isdir(options.cachefilepath) is True:
+        options.cachefilepath = os.path.abspath(options.cachefilepath)
     return options

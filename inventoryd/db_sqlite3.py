@@ -516,6 +516,7 @@ class db_sqlite3():
                 return False
         
         return True
+
     def deleteStaticHostvar(self, hostname = None, fact = None):
         query = "DELETE FROM `static_vars` WHERE `name`='%s' AND `fact`='%s' AND `type`='hostvar';" % (hostname, fact)
         return self.commit(query)
