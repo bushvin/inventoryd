@@ -102,7 +102,7 @@ class db():
             inventoryd.logmessage(severity="error", message="Invalid username for user info")
             return None
         else:
-            inventoryd.logmessage(severity="DEBUG", message="Get user info for %s" % user)
+            inventoryd.logmessage(severity="DEBUG", message="Get user info for %s" % username)
         res = self._dbo.getUserInfo(username)
         return res
     
@@ -336,14 +336,16 @@ class db():
             res = list()
         return res
 
-    def createConnector(self, name, connector, connector_type, parameters, priority):
+    def createConnector(self, name, connector, connector_type, schedule, parameters, priority):
         inventoryd.logmessage(severity="DEBUG", message="Create a new connector")
-        res = self._dbo.createConnector(name, connector, connector_type, parameters, priority)
-        if res is False:
+        res = self._dbo.createConnector(name, connector, connector_type, schedule, parameters, priority)
+        if res == -1:
             inventoryd.logmessage(severity="error", message="An error ocurred creating the connector.")
-
-        return res
-
+        
+        self.modifyConnector(res, name, connector, connector_type, schedule, parameters, priority)
+        self.disableConnector(res)
+        return True
+        
     def enableConnector(self, connector_id):
         inventoryd.logmessage(severity="DEBUG", message="Enable connector %d" % connector_id)
         res = self._dbo.enableConnector(connector_id)
@@ -366,6 +368,12 @@ class db():
         if res is False:
             inventoryd.logmessage(severity="error", message="An error ocurred reading the connector.")
             res = dict()
+        try:
+            res["parameters"]
+        except:
+            res = res
+        else:
+            res["parameters"] = json.loads(res["parameters"])
         return res
 
     def getHosts(self):
@@ -549,4 +557,9 @@ class db():
         #tdb.disconnect()
         return res
     
+    def modifyConnector(self, connector_id, name = None, connector = None, connector_type = None, schedule = "@daily", parameters = None, priority = None):
+        return self._dbo.modifyConnector(connector_id, name, connector, connector_type, parameters, priority)
+    
+    def deleteConnector(self, connector_id):
+        return self._dbo.deleteConnector(connector_id)
     

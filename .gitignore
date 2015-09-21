@@ -4,3 +4,4 @@ server.crt
 server.key
 inventoryd.db
 var/
+inventoryctl/

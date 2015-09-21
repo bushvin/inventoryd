@@ -47,7 +47,7 @@ def showInventory(user = None, payload = None, handler = None):
     return True
 
 def listConnectors(user = None, payload = None, handler = None):
-    if user.hasAcces("lis","connector") is True:
+    if user.hasAcces("list","connector") is True:
         db = inventoryd.db(inventoryd.localData.cfg["db"])
         connectors = db.getConnectors(False)
         db.disconnect()
@@ -57,7 +57,7 @@ def listConnectors(user = None, payload = None, handler = None):
         handler.wfile.write(json.dumps(connectors, sort_keys=True, indent=4, separators=(',',': ')))
         return True
     else:
-        self.send_response(401)
+        handler.send_response(401)
         return True
 
 def createConnector(user = None, payload = None, handler = None):
@@ -73,7 +73,7 @@ def createConnector(user = None, payload = None, handler = None):
             handler.send_response(400)
             handler.send_header('Content-Type', 'application/json')
             handler.end_headers()
-            handler.wfile.write(json.dumps({'rc':400,'message':connector.err}, sort_keys=True, indent=4, separators=(',',': ')))
+            handler.wfile.write(json.dumps({'rc':400,'message':connector.getError()}, sort_keys=True, indent=4, separators=(',',': ')))
         return True
     else:
         self.send_response(401)
@@ -101,7 +101,7 @@ def modifyConnector(user = None, payload = None, handler = None):
             handler.send_response(400)
             handler.send_header('Content-Type', 'application/json')
             handler.end_headers()
-            handler.wfile.write(json.dumps({'rc':400,'message':connector.err}, sort_keys=True, indent=4, separators=(',',': ')))
+            handler.wfile.write(json.dumps({'rc':400,'message':connector.getError()}, sort_keys=True, indent=4, separators=(',',': ')))
         return True
     else:
         handler.send_response(401)
@@ -370,6 +370,7 @@ class RESTconnectorHandler():
     _connector = None
     _type = None
     _typelist = [ 'hosts', 'groups' ]
+    _schedule = "@daily"
     _parameters = None
     _priority = 0
     _data = dict()
@@ -398,6 +399,11 @@ class RESTconnectorHandler():
             config["type"] = None
         
         try:
+            config["schedule"]
+        except: 
+            config["schedule"] = "@daily"
+        
+        try:
             config["parameters"]
         except:
             config["parameters"] = None
@@ -411,10 +417,15 @@ class RESTconnectorHandler():
         self._name = config["name"]
         self._connector = config["connector"]
         self._type = config["type"]
+        self._schedule = config["schedule"]
         self._parameters = config["parameters"]
         self._priority = config["priority"]
+
+    def getError(self):
+        return self._err
     
     def create(self):
+        self._err = list()
         if self._name is None:
             self._err.append('You need to specify a connector name')
     
@@ -426,10 +437,13 @@ class RESTconnectorHandler():
         elif isinstance(self._type, str) and self._type not in self._typelist:
             self._err.append('Connector type cannot be %s. It has to be one of these: %s.' % (self._type, ",".join(self._typelist)))
     
+        if self._schedule is None:
+            self._err.append('You need to specify the schedule')
+    
         if self._parameters is None:
             self._err.append('You need to specify the connector parameters')
     
-        if self._parameters is None:
+        if self._priority is None:
             self._err.append('You need to specify the connector priority')
         
         if len(self._err) > 0:
@@ -442,19 +456,22 @@ class RESTconnectorHandler():
         return res
         
     def modify(self):
+        self._err = list()
         db = inventoryd.db(inventoryd.localData.cfg["db"])
-        res = db.modifyConnector(id = self._id, name = self._name, connector = self._connector, type = self._type, parameters = json.dumps(self._parameters), priority = self._priority)
+        res = db.modifyConnector(self._id, self._name, self._connector, self._type, json.dumps(self._parameters), self._priority)
         db.disconnect()
 
         return res
     
     def delete(self, connector_id = -1):
+        self._err = list()
         db = inventoryd.db(inventoryd.localData.cfg["db"])
         res = db.deleteConnector(connector_id = self._id)
         db.disconnect()
         return res
         
     def read(self, connector_id = -1):
+        self._err = list()
         if connector_id > 0:
             self._id = connector_id
         self._data = dict()
@@ -491,6 +508,11 @@ class RESTconnectorHandler():
             res["type"] = None
         
         try:
+            res["schedule"]
+        except:
+            res["schedule"] = None
+        
+        try:
             res["parameters"]
         except:
             res["parameters"] = None
@@ -501,13 +523,14 @@ class RESTconnectorHandler():
         self._enabled = res["enabled"]
         self._priority = res["priority"]
         self._type = res["type"]
+        self._schedule = res["schedule"]
         self._parameters = res["parameters"]
         
         db.disconnect()
         return True
     
     def getData(self):
-        return { 'id': self._id, 'name': self._name, 'connector': self._connector, 'enabled': self._enabled, 'priority': self._priority, 'type': self._type, 'parameters': self._parameters }
+        return { 'id': self._id, 'name': self._name, 'connector': self._connector, 'enabled': self._enabled, 'priority': self._priority, 'type': self._type, 'parameters': self._parameters, 'schedule': self._schedule }
         
     def enable(self, connector_id = -1):
         if connector_id > 0:

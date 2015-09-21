@@ -366,22 +366,23 @@ class db_sqlite3():
         
         return self.query(query)
 
-    def createConnector(self, name, connector, connector_type, parameters, priority):
+    def createConnector(self, name, connector, connector_type, schedule, parameters, priority):
         query = "SELECT MAX(`id`) `connector_id` FROM `sync_connector`;"
         res = self.query(query)
         if res is None:
             return False
         elif len(res) == 1 and res[0]["connector_id"] is not None:
-            connector_id = int(res[0]["connector_id"])
+            connector_id = int(res[0]["connector_id"]) + 1
         else:
             connector_id = 1
-        query = "INSERT INTO `sync_connector` (`id`) VALUES('%d');" % int(connector_id)
+        query = "INSERT INTO `sync_connector` (`id`) VALUES('%d');" % connector_id
+        #print query
         if self.commit(query) is None:
-            return False
+            return -1
         
-        return True
+        return connector_id
         
-    def modifyConnector(self, connector_id, name = None, connector = None, connector_type = None, parameters = None, priority = None):
+    def modifyConnector(self, connector_id, name = None, connector = None, connector_type = None, schedule = "@daily", parameters = None, priority = None):
         query_args = list()
         if name is not None:
             query_args.append("`name`='%s'" % name)
@@ -398,6 +399,7 @@ class db_sqlite3():
         if priority is not None:
             query_args.append("`priority`='%d'" % int(priority))
         
+        query_args.append("`schedule`='%s'" % schedule)
         if len(query_args) > 0:
             query = "UPDATE `sync_connector` SET %s WHERE `id`=%d;" % (", ".join(query_args), int(connector_id))
             return self.commit(query)
@@ -520,3 +522,9 @@ class db_sqlite3():
     def deleteStaticHostvar(self, hostname = None, fact = None):
         query = "DELETE FROM `static_vars` WHERE `name`='%s' AND `fact`='%s' AND `type`='hostvar';" % (hostname, fact)
         return self.commit(query)
+
+    def deleteConnector(self, connector_id):
+        query = "DELETE FROM `sync_connector` WHERE `id`='%d';" % connector_id
+        if self.commit(query) is None:
+            return False
+        return True
