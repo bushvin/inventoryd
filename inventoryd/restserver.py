@@ -291,6 +291,9 @@ def readHostvars(user = None, payload = None, handler = None):
         return True
     
 class RESTRequestHandler(BaseHTTPRequestHandler):
+    
+    def log_message(self, format, *args):
+        inventoryd.logmessage(severity="info", message="%s - - [%s] %s" % (self.client_address[0], self.log_date_time_string(), format%args))
         
     def do_GET(self):
         inventoryd.logmessage(severity="debug", message="GET request (%s)." % self.path)
@@ -659,6 +662,7 @@ sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout server.key -out
         """Start the REST server"""
         if self._port != -1:
             inventoryd.logmessage(severity="debug", message="Starting REST server (%s:%d)." % (self._ip, self._port))
+            self.server.serve_forever()
             self.server_thread = threading.Thread(target=self.server.serve_forever)
             self.server_thread.start()
             inventoryd.logmessage(severity="debug", message="REST server (%s:%d) started." % (self._ip, self._port))

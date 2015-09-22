@@ -244,7 +244,6 @@ class daemon:
         self._startHTTPRESTserver()
         self._startHTTPSRESTserver()
         
-        
     def _startHTTPRESTserver(self):
         self._http_restserver = inventoryd.RESTserver(self._cfg["rest_server"]["listen"], int(self._cfg["rest_server"]["http_port"]))
         self._http_restserver.start()

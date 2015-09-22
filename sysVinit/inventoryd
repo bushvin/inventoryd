@@ -33,7 +33,7 @@ start() {
     
     # Start daemon
     echo -n $"Starting $prog: "
-    daemon --user $USER --pidfile /var/lock/inventoryd.pid $prog $OPTIONS &
+    daemon --user $USER --pidfile /var/lock/inventoryd.pid $prog $OPTIONS 
     RETVAL=$?
     echo
     [ $RETVAL -eq 0 ] && touch $lockfile
@@ -42,7 +42,7 @@ start() {
 
 stop() {
     echo -n $"Shutting down $prog: "
-    killproc $prog
+    killproc $prog -2
     RETVAL=$?
     echo
     [ $RETVAL -eq 0 ] && rm -f $lockfile

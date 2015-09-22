@@ -47,8 +47,8 @@ class logmessage():
                 break
         if continue_log is True:
             self.logToSyslog()
-            if inventoryd.localData.cli.daemonize is False:
-                self.logToConsole()
+            #if inventoryd.localData.cli.daemonize is False:
+            self.logToConsole()
     
     def logToSyslog(self):
         exec "facility = syslog.LOG_%s" % self._facility.upper()
