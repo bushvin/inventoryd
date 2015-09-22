@@ -33,7 +33,7 @@ start() {
     
     # Start daemon
     echo -n $"Starting $prog: "
-    daemon $prog $OPTIONS
+    daemon --user $USER --pidfile /var/lock/inventoryd.pid $prog $OPTIONS &
     RETVAL=$?
     echo
     [ $RETVAL -eq 0 ] && touch $lockfile
@@ -61,8 +61,11 @@ case "$1" in
         sleep 1
         start
         ;;
+    status)
+        status $prog
+        ;;;
     *)
-        echo $"Usage: $0 {start|stop|restart}"
+        echo $"Usage: $0 {start|stop|restart|status}"
         exit 2
 esac
 
