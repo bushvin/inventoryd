@@ -48,11 +48,11 @@ class daemon:
 
     def start(self):
         self._createPID()
-        self._startRESTserver()
         if self._cli.run_scheduler is True:
             self._startScheduler()
         else:
             inventoryd.logmessage(severity="info", message="not running scheduler. --no-scheduler specified at startup.")
+        self._startRESTserver()
 
     def stop(self, force = False):
         self._stopRESTserver()
