@@ -23,7 +23,7 @@ import inventoryd
 def getcliargs():
     parser = OptionParser()
     
-    parser.add_option("-C", "--config", help="Path to the config file", dest="configpath", action="store", type="string", default="/etc/inventoryd/inventory.cfg")
+    parser.add_option("-C", "--config", help="Path to the config file", dest="configpath", action="store", type="string", default="/etc/inventoryd/inventoryd.cfg")
     parser.add_option("-P", "--pidfile", help="Path to the pid file", dest="pidfilepath", action="store", type="string", default="/var/run/inventoryd.pid")
     parser.add_option("-R", "--cachedir", help="Path where inventoryd stores cache files", dest="cachefilepath", action="store", type="string", default="/var/cache/inventoryd")
     parser.add_option("-N", "--no-scheduler", help="Do not run the scheduler. (no connector sync, no housekeeper)", dest="run_scheduler", action="store_false", default=True)
