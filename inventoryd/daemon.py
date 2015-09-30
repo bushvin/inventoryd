@@ -32,6 +32,7 @@ class daemon:
     _https_restserver = None
     _http_restserver = None
     _scheduleTimer = None
+    _scheduler_is_running = False
     _housekeeper_lock = False
     _connector_lock = False
     
@@ -48,11 +49,15 @@ class daemon:
     def start(self):
         self._createPID()
         self._startRESTserver()
-        self._startScheduler()
+        if self._cli.run_scheduler is True:
+            self._startScheduler()
+        else:
+            inventoryd.logmessage(severity="info", message="not running scheduler. --no-scheduler specified at startup.")
 
     def stop(self, force = False):
         self._stopRESTserver()
-        self._stopScheduler()
+        if self._cli.run_scheduler is True:
+            self._stopScheduler()
         self._destroyPID()
     
     def _createPID(self):
@@ -103,56 +108,48 @@ class daemon:
             self._scheduleTimer.cancel()
         
     def _runScheduler(self):
-        inventoryd.logmessage(severity="info", message="Starting scheduled tasks")
         interval = 61 - datetime.datetime.now().second
-        inventoryd.logmessage(severity="info", message="Next scheduled tasks run in %ds" %interval)
         self._scheduleTimer = Timer(interval, self._runScheduler)
         self._scheduleTimer.start()
-        cron = inventoryd.cronpare()
-        db = inventoryd.db(self._cfg["db"])
-        for el in db.getConnectors():
-            inventoryd.logmessage(severity="info", message="Checking schedule for %s:%s" % (el["name"], el["schedule"]))
-            if cron.compare(el["schedule"]) is True and self._connector_lock is False:
-                inventoryd.logmessage(severity="info", message="Starting sync run for %s. Locking connector sync." % el["name"])
-                self._connector_lock = True
-                self._sync_connector(el["id"])
-                inventoryd.logmessage(severity="info", message="Ending sync run for %s. Unlocking connector sync." % el["name"])
-                self._connector_lock = False
-            elif cron.compare(el["schedule"]) is True and self._connector_lock is True:
-                inventoryd.logmessage(severity="info", message="Not starting sync for %s, connector sync is locked by another sync." % el["name"])
 
-        if self._connector_lock is False:
-            if cron.compare(self._cfg["housekeeper"]["schedule"]) is True:
-                if self._housekeeper_lock is False:
-                    self._housekeeper_lock = True
-                    inventoryd.logmessage(severity="info", message="Starting Housekeeping run")
-                    if self._cfg["housekeeper"]["history"] > 0:
-                        db.deleteHistory(self._cfg["housekeeper"]["history"])
-                    if self._cfg["housekeeper"]["inventory_history"] > 0:
-                        cachefiles = list()
-                        for el in os.listdir(self._cli.cachefilepath):
-                            if re.match("^[0-9]+.json", el) is not None:
-                                cachefiles.append(el)
-                        cachefiles.sort()
-                        cachefiles = cachefiles[:0-self._cfg["housekeeper"]["inventory_history"]]
-                        inventoryd.logmessage(severity="info", message="Removing %d old cache files" % len(cachefiles))
-                        for el in cachefiles:
-                            inventoryd.logmessage(severity="info", message="Removing old cache file %s" % el)
-                            try:
-                                os.unlink("%s/%s" % (self._cli.cachefilepath, el))
-                            except OSError as e:
-                                inventoryd.logmessage(severity="error", message="An error ocurred removing %s: %s" % (el, e))
-                            except:
-                                inventoryd.logmessage(severity="error", message="An error ocurred removing %s" % el)
-                    inventoryd.logmessage(severity="info", message="Ending Housekeeping run")
-                    self._housekeeper_lock = False
-                else:
-                    inventoryd.logmessage(severity="info", message="Skipping Housekeeping run. Still busy.")
+        if self._scheduler_is_running is True:
+            inventoryd.logmessage(severity="info", message="Skipping run, as scheduler is still busy.")
         else:
-            inventoryd.logmessage(severity="info", message="Skipping Housekeeping run. Connector Sync is still busy.")
-            
-        db.disconnect()
-        inventoryd.logmessage(severity="info", message="Endinging scheduled tasks")
+            inventoryd.logmessage(severity="info", message="Starting scheduled tasks")
+            cron = inventoryd.cronpare()
+            db = inventoryd.db(self._cfg["db"])
+            for el in db.getConnectors():
+                inventoryd.logmessage(severity="info", message="Checking schedule for %s:%s" % (el["name"], el["schedule"]))
+                if cron.compare(el["schedule"]) is True:
+                    inventoryd.logmessage(severity="info", message="Starting sync run for %s." % el["name"])
+                    self._sync_connector(el["id"])
+                    inventoryd.logmessage(severity="info", message="Ending sync run for %s." % el["name"])
+
+            if cron.compare(self._cfg["housekeeper"]["schedule"]) is True:
+                inventoryd.logmessage(severity="info", message="Starting Housekeeping run")
+                if self._cfg["housekeeper"]["history"] > 0:
+                    db.deleteHistory(self._cfg["housekeeper"]["history"])
+
+                if self._cfg["housekeeper"]["inventory_history"] > 0:
+                    cachefiles = list()
+                    for el in os.listdir(self._cli.cachefilepath):
+                        if re.match("^[0-9]+.json", el) is not None:
+                            cachefiles.append(el)
+                    cachefiles.sort()
+                    cachefiles = cachefiles[:0-self._cfg["housekeeper"]["inventory_history"]]
+                    inventoryd.logmessage(severity="info", message="Removing %d old cache files" % len(cachefiles))
+                    for el in cachefiles:
+                        inventoryd.logmessage(severity="debug", message="Removing old cache file %s" % el)
+                        try:
+                            os.unlink("%s/%s" % (self._cli.cachefilepath, el))
+                        except OSError as e:
+                            inventoryd.logmessage(severity="error", message="An error ocurred removing %s: %s" % (el, e))
+                        except:
+                            inventoryd.logmessage(severity="error", message="An error ocurred removing %s" % el)
+                inventoryd.logmessage(severity="info", message="Ending Housekeeping run")
+                
+            db.disconnect()
+            inventoryd.logmessage(severity="info", message="Endinging scheduled tasks")
         
     
     def _sync_connector(self, connector_id):
