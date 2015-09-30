@@ -283,7 +283,7 @@ class connector(object):
             fields.append(el["index"])
         
         f = BytesIO(csv_data)
-        rdr = csv.reader(f, delimiter=self.getParameter('delimiter'), quotechar=self.getParameter('quotechar'))
+        rdr = csv.reader(f, delimiter=self.getParameter('delimiter').encode("utf8"), quotechar=self.getParameter('quotechar').encode("utf8"))
         for row in rdr:
             row = dict(zip(fields,row))
             
@@ -306,7 +306,7 @@ class connector(object):
             fields.append(el["index"])
         
         f = BytesIO(csv_data)
-        rdr = csv.reader(f, delimiter=self.getParameter('delimiter'), quotechar=self.getParameter('quotechar'))
+        rdr = csv.reader(f, delimiter=self.getParameter('delimiter').encode("utf8"), quotechar=self.getParameter('quotechar').encode("utf8"))
         for row in rdr:
             row = dict(zip(fields,row))
 

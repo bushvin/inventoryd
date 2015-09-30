@@ -110,6 +110,17 @@ class daemon:
         self._scheduleTimer.start()
         cron = inventoryd.cronpare()
         db = inventoryd.db(self._cfg["db"])
+        for el in db.getConnectors():
+            inventoryd.logmessage(severity="info", message="Checking schedule for %s:%s" % (el["name"], el["schedule"]))
+            if cron.compare(el["schedule"]) is True and self._connector_lock is False:
+                inventoryd.logmessage(severity="info", message="Starting sync run for %s. Locking connector sync." % el["name"])
+                self._connector_lock = True
+                self._sync_connector(el["id"])
+                inventoryd.logmessage(severity="info", message="Ending sync run for %s. Unlocking connector sync." % el["name"])
+                self._connector_lock = False
+            elif cron.compare(el["schedule"]) is True and self._connector_lock is True:
+                inventoryd.logmessage(severity="info", message="Not starting sync for %s, connector sync is locked by another sync." % el["name"])
+        """
         if self._connector_lock is False:
             self._connector_lock = True
             for el in db.getConnectors():
@@ -119,7 +130,7 @@ class daemon:
                     self._sync_connector(el["id"])
                     inventoryd.logmessage(severity="info", message="Ending sync run for %s" % el["name"])
             self._connector_lock = False
-
+        """
         if self._connector_lock is False:
             if cron.compare(self._cfg["housekeeper"]["schedule"]) is True:
                 if self._housekeeper_lock is False:
