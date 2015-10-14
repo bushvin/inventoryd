@@ -48,11 +48,11 @@ class daemon:
 
     def start(self):
         self._createPID()
+        self._startRESTserver()
         if self._cli.run_scheduler is True:
             self._startScheduler()
         else:
             inventoryd.logmessage(severity="info", message="not running scheduler. --no-scheduler specified at startup.")
-        self._startRESTserver()
 
     def stop(self, force = False):
         self._stopRESTserver()
@@ -115,17 +115,19 @@ class daemon:
         if self._scheduler_is_running is True:
             inventoryd.logmessage(severity="info", message="Skipping run, as scheduler is still busy.")
         else:
+            datetime_now = datetime.datetime.today()
             inventoryd.logmessage(severity="info", message="Starting scheduled tasks")
             cron = inventoryd.cronpare()
             db = inventoryd.db(self._cfg["db"])
             for el in db.getConnectors():
-                inventoryd.logmessage(severity="info", message="Checking schedule for %s:%s" % (el["name"], el["schedule"]))
-                if cron.compare(el["schedule"]) is True:
+                inventoryd.logmessage(severity="info", message="Checking schedule for %s: %s" % (el["name"], el["schedule"]))
+                if cron.compare(el["schedule"], datetime_now) is True:
                     inventoryd.logmessage(severity="info", message="Starting sync run for %s." % el["name"])
                     self._sync_connector(el["id"])
                     inventoryd.logmessage(severity="info", message="Ending sync run for %s." % el["name"])
-
-            if cron.compare(self._cfg["housekeeper"]["schedule"]) is True:
+            
+            inventoryd.logmessage(severity="info", message="Checking schedule for Housekeeper: %s" % self._cfg["housekeeper"]["schedule"])
+            if cron.compare(self._cfg["housekeeper"]["schedule"], datetime_now) is True:
                 inventoryd.logmessage(severity="info", message="Starting Housekeeping run")
                 if self._cfg["housekeeper"]["history"] > 0:
                     db.deleteHistory(self._cfg["housekeeper"]["history"])

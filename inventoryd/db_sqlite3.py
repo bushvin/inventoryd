@@ -257,7 +257,7 @@ class db_sqlite3():
                 return False
             
             all_ids = [ str(el["id"]) for el in res ]
-            del_ids = all_ids[keep_history:]
+            del_ids = all_ids[:(len(all_ids)-keep_history)]
                 
             if len(del_ids) > 0:
                 query = "DELETE FROM `cache_vars` WHERE `history_id` IN (%s);" % ",".join(del_ids)
