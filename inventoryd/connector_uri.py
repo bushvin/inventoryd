@@ -55,7 +55,10 @@ class connector_uri(inventoryd.connector):
     def getGroups(self):
         args = [ { 'name':'uri', 'mandatory':True, 'default':None },
                  { 'name':'format', 'mandatory':False, 'default': 'json' },
-                 { 'name':'insecure', 'mandatory': False, 'default': False } ]
+                 { 'name':'insecure', 'mandatory': False, 'default': False },
+                 { 'name': 'delimiter', 'mandatory': False, 'default': ',' },
+                 { 'name': 'quotechar', 'mandatory': False, 'default': '"' },
+                 { 'name': 'header', 'mandatory': False, 'default': None } ]
         if self.updateArguments(args) is False:
             return list()
             
