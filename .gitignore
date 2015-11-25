@@ -5,3 +5,4 @@ server.key
 inventoryd.db
 var/
 inventoryctl/
+test/
