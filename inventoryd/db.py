@@ -256,14 +256,16 @@ class db():
                 for c_el in cache["vars"]:
                     index = "%s::%s" % (cache["vars"][c_el]["groupname"], cache["vars"][c_el]["fact"])
                     try:
-                        groupcache["membership"][index]
+                        groupcache["vars"][index]
                     except:
-                        groupcache["membership"][index] = dict()
+                        groupcache["vars"][index] = dict()
                     
                     groupcache["vars"][index]["groupname"] = cache["vars"][c_el]["groupname"]
                     groupcache["vars"][index]["fact"] = cache["vars"][c_el]["fact"]
                     groupcache["vars"][index]["value"] = cache["vars"][c_el]["value"]
                     groupcache["vars"][index]["priority"] = cache["vars"][c_el]["priority"]
+                    groupcache["vars"][index]["apply_to_hosts"] = ''
+                    groupcache["vars"][index]["include_hosts"] = False
 
                 for c_el in cache["membership"]:
                     index = "%s::%s::%s" % (cache["membership"][c_el]["groupname"], cache["membership"][c_el]["childname"], cache["membership"][c_el]["childtype"])
@@ -420,8 +422,10 @@ class db():
     def getAnsibleInventory(self):
         hosts = dict()
         groups = dict()
+        groups_rendered = dict()
+        connectors = sorted(self.getConnectors(True), key=lambda k: k["priority"])
+        
         res = { '_meta': { 'hostvars': {} } }
-        #tdb = inventoryd.db(inventoryd.localData.cfg["db"])
         
         inventoryd.logmessage(severity="debug", message="creating hostvars - begin")
         thc = self.getHostCache()["vars"]
@@ -437,118 +441,106 @@ class db():
         inventoryd.logmessage(severity="debug", message="creating hostvars - end")
         
         inventoryd.logmessage(severity="debug", message="creating groupvars - begin")
-
-        tgc = self.getGroupCache()
-
-        for el in tgc["vars"]:
-            try:
-                groups[tgc["vars"][el]["groupname"]]
-            except:
-                groups[tgc["vars"][el]["groupname"]] = {'vars':{}}
-            
-            groups[tgc["vars"][el]["groupname"]]["vars"].update({ tgc["vars"][el]["fact"]:tgc["vars"][el]["value"] })
-            
-            groups[tgc["vars"][el]["groupname"]]["apply_to_hosts"] = tgc["vars"][el]["apply_to_hosts"]
-
-        for el in tgc["membership"]: 
-            try:
-                groups[tgc["membership"][el]["groupname"]]
-            except:
-                groups[tgc["membership"][el]["groupname"]] = dict()
-            
-            if tgc["membership"][el]["childtype"] == "host":
-                try:
-                    groups[tgc["membership"][el]["groupname"]]["hosts"]
-                except:
-                    groups[tgc["membership"][el]["groupname"]]["hosts"] = []
-                
-                groups[tgc["membership"][el]["groupname"]]["hosts"].append(tgc["membership"][el]["childname"])
-            elif tgc["membership"][el]["childtype"] == "group":
-                try:
-                    groups[tgc["membership"][el]["groupname"]]["children"]
-                except:
-                    groups[tgc["membership"][el]["groupname"]]["children"] = []
-                groups[tgc["membership"][el]["groupname"]]["children"].append(tgc["membership"][el]["childname"])
-            
-            groups[tgc["membership"][el]["groupname"]]["apply_to_hosts"] = tgc["membership"][el]["apply_to_hosts"]
-            groups[tgc["membership"][el]["groupname"]]["include_hosts"] = tgc["membership"][el]["include_hosts"]
-            groups[tgc["membership"][el]["groupname"]]["childtype"] = tgc["membership"][el]["childtype"]
-            groups[tgc["membership"][el]["groupname"]]["childname"] = tgc["membership"][el]["childname"]
-            
-        inventoryd.logmessage(severity="debug", message="creating groupvars - end")
-
-        inventoryd.logmessage(severity="debug", message="rendering groups - begin")
-        groups_rendered = dict()
-
         
-        for groupname in groups:
-            try:
-                groups[groupname]["hosts"]
-            except:
-                groups[groupname]["hosts"] = list()
-
-            try:
-                groups[groupname]["children"]
-            except:
-                groups[groupname]["children"] = list()
-
-            for hostname in hosts:
-                if re.match(groups[groupname]["apply_to_hosts"], hostname) is not None:
-                    tg = Template(groupname)
-                    newgroupname = tg.render(hosts[hostname])
+        for connector in connectors:
+            tcgc = self.getConnectorGroupCache(connector["id"])
+            for el in tcgc["membership"]:
+                try:
+                    groups[el["groupname"]]
+                except:
+                    groups[el["groupname"]] = { 'hosts': [], 'children': [], 'vars': {} }
+                
+                if el["childtype"] == 'host' and el["childname"] != "":
+                    groups[el["groupname"]]["hosts"].append(el["childname"])
+                elif el["childtype"] == 'group' and el["childname"] != "":
+                    groups[el["groupname"]]["children"].append(el["childname"])
+            
+            for el in tcgc["vars"]:
+                try:
+                    groups[el["groupname"]]
+                except:
+                    groups[el["groupname"]] = { 'hosts': [], 'children': [], 'vars': {} }
+                
+                groups[el["groupname"]]["vars"].update({el['fact']:el['value']})
+        
+        tsgc = self.getStaticGroupCache()
+        for el in tsgc["membership"]:
+            if el["childtype"] == "group":
+                for hostname in hosts:
+                    tgn = Template(el["groupname"])
+                    newgroupname = tgn.render(hosts[hostname])
                     newgroupname = re.sub('\s+','_',newgroupname)
-                else:
-                    newgroupname = groupname
-                
-                try:
-                    groups_rendered[newgroupname]
-                except:
-                    groups_rendered[newgroupname] = dict()
-                
-                try:
-                    groups_rendered[newgroupname]["hosts"]
-                except:
-                    groups_rendered[newgroupname]["hosts"] = list()
                     
-                try:
-                    groups_rendered[newgroupname]["children"]
-                except:
-                    groups_rendered[newgroupname]["children"] = list()
-                
-                if groups[groupname]["include_hosts"] == 1 and groups[groupname]["childtype"] == "host" and groups[groupname]["childname"] not in groups_rendered[newgroupname]["hosts"]:
-                    groups_rendered[newgroupname]["hosts"].append(groups[groupname]["childname"])
-                elif groups[groupname]["childtype"] == "group":
-                    tc = Template(groups[groupname]["childname"])
-                    childgroupname = tc.render(hosts[hostname])
-                    childgroupname = re.sub('\s+','_',childgroupname)
-                    if childgroupname not in groups_rendered[newgroupname]["children"]:
-                        groups_rendered[newgroupname]["children"].append(childgroupname)
                     try:
-                       groups_rendered[childgroupname]
+                        groups[newgroupname]
                     except:
-                        groups_rendered[childgroupname] = { 'hosts':[], 'children':[] }
+                        groups[newgroupname] = { 'hosts': [], 'children': [], 'vars': {} }
+                    if el["childname"]is not None:
+                        tgn = Template(el["childname"])
+                        newchildgroupname = tgn.render(hosts[hostname])
+                        newchildgroupname = re.sub('\s+','_',newchildgroupname)
+                        
+                        try:
+                            groups[newchildgroupname]
+                        except:
+                            groups[newchildgroupname] = { 'hosts': [], 'children': [], 'vars': {} }
+                        
+                        groups[newgroupname]["children"].append(newchildgroupname)
+                    
+                    if el["include_hosts"] == 1:
+                        if re.search(el["apply_to_hosts"], hostname) is not None:
+                            groups[newgroupname]["hosts"].append(hostname)
+
+            elif el["childtype"] == "host":
+                try:
+                    hosts[el["childname"]]
+                except:
+                    continue
                 
-                if groups[groupname]["include_hosts"] == 1 :
-                    groups_rendered[newgroupname]["hosts"].append(hostname)
+                tgn = Template(el["groupname"])
+                newgroupname = tgn.render(hosts[el["childname"]])
+                newgroupname = re.sub('\s+','_',newgroupname)
+                
+                try:
+                    groups[newgroupname]
+                except:
+                    groups[newgroupname] = { 'hosts': [], 'children': [], 'vars': {} }
+                
+                groups[newgroupname]["hosts"].append(el["childname"])
+        for el in tsgc["vars"]:
+            for hostname in hosts:
+                tgn = Template(el["groupname"])
+                newgroupname = tgn.render(hosts[hostname])
+                newgroupname = re.sub('\s+','_',newgroupname)
+                
+                try:
+                    groups[newgroupname]
+                except:
+                    groups[newgroupname] = { 'hosts': [], 'children': [], 'vars': {} }
+                
+                groups[newgroupname]["vars"].update({el["fact"]:el["value"]})
         
-                            
         inventoryd.logmessage(severity="debug", message="rendering groups - end")
-                
+        
+        
         res["_meta"]["hostvars"] = hosts
-        for el in groups_rendered:
-            if len(groups_rendered[el]["hosts"]) == 0:
-                del(groups_rendered[el]["hosts"])
+        for el in groups:
+            if len(groups[el]["hosts"]) == 0:
+                del(groups[el]["hosts"])
             else:
-                groups_rendered[el]["hosts"] = list(set(groups_rendered[el]["hosts"]))
-                groups_rendered[el]["hosts"].sort()
+                groups[el]["hosts"] = list(set(groups[el]["hosts"]))
+                groups[el]["hosts"].sort()
                 
-            if len(groups_rendered[el]["children"]) == 0:
-                del(groups_rendered[el]["children"])
+            if len(groups[el]["children"]) == 0:
+                del(groups[el]["children"])
             else:
-                groups_rendered[el]["children"] = list(set(groups_rendered[el]["children"]))
-                groups_rendered[el]["children"].sort()
-                
-        res.update(groups_rendered)
+                groups[el]["children"] = list(set(groups[el]["children"]))
+                groups[el]["children"].sort()
+            
+            if len(groups[el]["vars"].keys()) == 0:
+                del(groups[el]["vars"])
+            
+        res.update(groups)
         if inventoryd.localData.cfg["inventory"]["create_all"] is True:
             res["all"] = { 'hosts': list(set([ el for el in res["_meta"]["hostvars"] ])) }
             res["all"]["hosts"].sort()

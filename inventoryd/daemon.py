@@ -120,14 +120,14 @@ class daemon:
             cron = inventoryd.cronpare()
             db = inventoryd.db(self._cfg["db"])
             for el in db.getConnectors():
-                inventoryd.logmessage(severity="info", message="Checking schedule for %s: %s" % (el["name"], el["schedule"]))
-                if cron.compare(el["schedule"], datetime_now) is True:
+                inventoryd.logmessage(severity="info", message="Checking schedule for %s:%s" % (el["name"], el["schedule"]))
+                if cron.compare(el["schedule"],datetime_now) is True:
                     inventoryd.logmessage(severity="info", message="Starting sync run for %s." % el["name"])
                     self._sync_connector(el["id"])
                     inventoryd.logmessage(severity="info", message="Ending sync run for %s." % el["name"])
-            
-            inventoryd.logmessage(severity="info", message="Checking schedule for Housekeeper: %s" % self._cfg["housekeeper"]["schedule"])
-            if cron.compare(self._cfg["housekeeper"]["schedule"], datetime_now) is True:
+
+            inventoryd.logmessage(severity="info", message="Checking schedule for Housekeeping:%s" % self._cfg["housekeeper"]["schedule"])
+            if cron.compare(self._cfg["housekeeper"]["schedule"],datetime_now) is True:
                 inventoryd.logmessage(severity="info", message="Starting Housekeeping run")
                 if self._cfg["housekeeper"]["history"] > 0:
                     db.deleteHistory(self._cfg["housekeeper"]["history"])
@@ -218,7 +218,8 @@ class daemon:
         
         db.disconnect()
         
-        self._createInventoryCacheFile()
+        if execute_connector is True:
+            self._createInventoryCacheFile()
         
     def _createInventoryCacheFile(self):
         inventoryd.logmessage(severity="info", message="Create Inventory cache file")

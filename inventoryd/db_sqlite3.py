@@ -211,7 +211,7 @@ class db_sqlite3():
                 return False
 
         count = 0
-        for el in facts:
+        for el in hosts:
             if count == 0:
                 query = "INSERT INTO `cache_groupmembership` SELECT '%d' AS `history_id`, '%s' AS `name`, '%s' AS `childname`, 'host' AS `childtype`" % ( history_id, self.sanitize(el["groupname"]), self.sanitize(el["host"]))
             else:
@@ -228,7 +228,7 @@ class db_sqlite3():
 
 
         count = 0
-        for el in facts:
+        for el in children:
             if count == 0:
                 query = "INSERT INTO `cache_groupmembership` SELECT '%d' AS `history_id`, '%s' AS `name`, '%s' AS `childname`, 'group' AS `childtype`" % ( history_id,el["groupname"], self.sanitize(el["child"]))
             else:
@@ -257,7 +257,7 @@ class db_sqlite3():
                 return False
             
             all_ids = [ str(el["id"]) for el in res ]
-            del_ids = all_ids[:(len(all_ids)-keep_history)]
+            del_ids = all_ids[:len(all_ids)-keep_history:]
                 
             if len(del_ids) > 0:
                 query = "DELETE FROM `cache_vars` WHERE `history_id` IN (%s);" % ",".join(del_ids)
@@ -317,7 +317,7 @@ class db_sqlite3():
         
     def getConnectorGroupCache(self, connector_id, timestamp = None):
         groupcache = { 'vars':[], 'membership':[] }
-        query = "SELECT `a`.`id`, `b`.`priority` FROM `sync_history` `a` LEFT JOIN `sync_connector` `b` ON (`a`.`connector_id`=`b`.`id`) WHERE `a`.`connector_id`='%d' ORDER BY `a`.`id` DESC LIMIT 0,1;" % connector_id
+        query = "SELECT `a`.`id`, `b`.`priority` FROM `sync_history` `a` LEFT JOIN `sync_connector` `b` ON (`a`.`connector_id`=`b`.`id`) WHERE `a`.`active`=1 AND `a`.`connector_id`='%d' ORDER BY `a`.`id` DESC LIMIT 0,1;" % connector_id
         res = self.query(query)
         if res is not None:
             history_id = int(res[0]["id"])
@@ -327,30 +327,44 @@ class db_sqlite3():
             #history_id = -1
             #priority = -1
         
-        query = "SELECT * FROM `cache_vars` WHERE `history_id`='%d';" % history_id
+        query = "SELECT * FROM `cache_vars` WHERE `history_id`='%d' and `type`='groupvar';" % history_id
         res = self.query(query)
         if res is None:
             return False
-        groupcache["vars"] = dict( ( '%s::%s' %(el["name"], el["fact"]), {'groupname':el["name"], 'fact':el["fact"], 'value':json.loads(el["value"]), 'priority': priority}) for el in res )
+        #groupcache["vars"] = dict( ( '%s::%s' %(el["name"], el["fact"]), {'groupname':el["name"], 'fact':el["fact"], 'value':json.loads(el["value"]), 'priority': priority, 'apply_to_hosts': '.*', 'include_hosts': True}) for el in res )
+        for el in res:
+            groupcache["vars"].append({'groupname':el["name"], 'fact':el["fact"], 'value':json.loads(el["value"]), 'priority': priority})
         
         query = "SELECT * FROM `cache_groupmembership` WHERE `history_id`='%d';" % history_id
         res = self.query(query)
         if res is None:
             return False
-        groupcache["membership"] = dict( ( '%s::%s::%s' % (el["name"], el["childname"], el["childtype"]), { 'groupname':el['name'], 'childname':el["childname"], 'childtype':el["childtype"], 'priority': priority, 'apply_to_hosts': '.*', 'include_hosts': True }) for el in res)
-            
+        
+        #groupcache["membership"] = dict()
+        #for el in res:
+        #    key = '%s::%s::%s' % (el["name"], el["childname"], el["childtype"])
+        #    groupcache["membership"][key] = { 'groupname':el['name'], 'childname':el["childname"], 'childtype':el["childtype"], 'priority': priority }
+        groupcache["membership"] = list()
+        for el in res:
+            groupcache["membership"].append({ 'groupname':el['name'], 'childname':el["childname"], 'childtype':el["childtype"], 'priority': priority })
+        
         return groupcache
     
     def getStaticGroupCache(self):
         groupcache = { 'vars':[], 'membership':[] }
         query = "SELECT * FROM `static_vars` WHERE `type`='groupvar';"
         res = self.query(query)
-        groupcache["vars"] = dict( ( '%s::%s' %(el["name"], el["fact"]), {'groupname':el["name"], 'fact':el["fact"], 'value':json.loads(el["value"]), 'priority': int(el["priority"])}) for el in res )
-
+        groupcache["vars"] = list()
+        #groupcache["vars"] = dict( ( '%s::%s' %(el["name"], el["fact"]), {'groupname':el["name"], 'fact':el["fact"], 'value':json.loads(el["value"]), 'priority': int(el["priority"])}) for el in res )
+        for el in res:
+            groupcache["vars"].appen({'groupname':el["name"], 'fact':el["fact"], 'value':json.loads(el["value"]), 'priority': int(el["priority"])})
+        
         query = "SELECT * FROM `static_groupmembership`;"
         res = self.query(query)
-        
-        groupcache["membership"] = dict( ( '%s::%s::%s' % (el["name"], el["childname"], el["childtype"]), { 'groupname':el['name'], 'childname':el["childname"], 'childtype':el["childtype"], 'priority': int(el["priority"]), 'apply_to_hosts': el["apply_to_hosts"], 'include_hosts': el["include_hosts"] }) for el in res)
+        groupcache["membership"] = list()
+        for el in res:
+            groupcache["membership"].append({ 'groupname':el['name'], 'childname':el["childname"], 'childtype':el["childtype"], 'priority': int(el["priority"]), 'apply_to_hosts': el["apply_to_hosts"], 'include_hosts': el["include_hosts"] })
+        #groupcache["membership"] = dict( ( '%s::%s::%s' % (el["name"], el["childname"], el["childtype"]), { 'groupname':el['name'], 'childname':el["childname"], 'childtype':el["childtype"], 'priority': int(el["priority"]), 'apply_to_hosts': el["apply_to_hosts"], 'include_hosts': el["include_hosts"] }) for el in res)
         
         return groupcache
     

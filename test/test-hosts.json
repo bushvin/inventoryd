@@ -1,3 +1,4 @@
 [
 { "hostname":"srv00001", "net_name":400, "test": true },
-{ "hostname":"srv00002", "net_name":50, "test": false } ]
+{ "hostname":"srv00002", "net_name":50, "test": false },
+{ "hostname":"p3tlimgr01std", "net_name":200, "test": true} ]

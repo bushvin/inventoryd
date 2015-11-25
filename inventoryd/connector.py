@@ -296,9 +296,9 @@ class connector(object):
         facts = list()
         hosts = list()
         children = list()
-        groupname_index = self.getSchemaItem("groupname", "index")
-        hostname_index = self.getSchemaItem("hostname", "index")
-        parent_index = self.getSchemaItem("parent", "index")
+        groupname_index = str(self.getSchemaItem("groupname", "index"))
+        hostname_index = str(self.getSchemaItem("hostname", "index"))
+        parent_index = str(self.getSchemaItem("parent", "index"))
 
         fields = list()
         for el in sorted(self.getParameter("schema"), key=lambda k: k["index"]):
@@ -309,7 +309,6 @@ class connector(object):
         rdr = csv.reader(f, delimiter=self.getParameter('delimiter').encode("utf8"), quotechar=self.getParameter('quotechar').encode("utf8"))
         for row in rdr:
             row = dict(zip(fields,row))
-
             for el in row:
                 if el not in (groupname_index, hostname_index, parent_index):
                     facts.append( { 'groupname':row[groupname_index], 'fact':self.getSchemaFactName(el), 'value':self.applySchema(el,row[el]) } )
